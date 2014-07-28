@@ -1,4 +1,4 @@
-= makerbot gen 5 API =
+# makerbot gen 5 API
 
 the goal of this project is to provide a python api for controlling the new makerbot 5th generation 3D printers
 
