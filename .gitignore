@@ -4,3 +4,7 @@ build
 dist
 *~
 
+
+.project
+.pydevproject
+.settings/
