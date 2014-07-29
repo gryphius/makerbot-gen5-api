@@ -16,6 +16,45 @@ class Error(Exception):
 class AuthenticationTimeout(Error):
   """Authentication timed out."""
 
+class NotAuthenticated(Error):
+    """Acces to privileged method call denied"""
+
+
+class Toolhead(object):
+
+    
+    def __init__(self):
+        self.filament_fan_running=None
+        self.filament_presence=None
+        self.extrusion_percent=None
+        self.filament_jam=None
+        
+        
+        
+        self.current_temperature=None
+        self.preheating=None
+        self.target_temperature=None
+
+        
+class BotState(object):
+    """Current Bot status data object"""
+    STEP_RUNNING='running'
+    #TODO: find out other step states
+    
+    STATE_IDLE='idle'
+    #TODO: find out other states
+    
+    
+    def __init__(self):
+        self.step=None
+        self.extruder_temp=None #TODO: find out how this differs from current_temperatore
+        self.toolheads=[]
+        self.preheat_percent=None
+        self.state=None
+    
+    def GetToolHeadCount(self):
+        return len(self.toolheads)
+    
 
 class Makerbot(object):
   """MakerBot."""
@@ -114,5 +153,51 @@ class Makerbot(object):
       self.vid = response['result'].get('vid')
 
   def GetSystemInformation(self):
-    """Get system information from MakerBot over JSON RPC."""
-    pass
+    """Get system information from MakerBot over JSON RPC.
+    
+    Returns:
+      A BotState object
+    """
+    request_id = self.__GetRequestID()
+    method = 'get_system_information'
+    params = {'username': 'conveyor',
+              'host_version': '1.0'}
+    jsonrpc = self.__GenerateJSONRPC(method, params, request_id)
+    response = self.__RPCSend(jsonrpc)
+    if u'error' in response:
+        err=response[u'error']
+        code=err[u'code']
+        message=err[u'message']
+        # 'method not found' means the current connection is not authenticated
+        if code==-32601: 
+            raise NotAuthenticated(message)
+        else:
+            raise Error('RPC Error code=%s message=%s'%(code,message))
+    
+    botstate=BotState()
+    assert u'result' in response,'unexpected JSON response : %s'%response
+    assert u'machine' in response[u'result'],'unexpected JSON response : %s'%response
+    json_machine_status=response[u'result'][u'machine']
+    
+    for attr in [u'step',u'extruder_temp',u'state',u'preheat_percent']:
+        if attr in json_machine_status:
+            setattr(botstate,attr,json_machine_status[attr])
+    
+    #for now we just support one toolhead (are there any gen5 with multiple heads anyway?)
+    toolhead=Toolhead()
+    json_toolhead_status=json_machine_status[u'toolhead_0_status']
+    for attr in [u'filament_fan_running',u'filament_presence',u'extrusion_percent',u'filament_jam']:
+        if attr in json_toolhead_status:
+            setattr(toolhead,attr,json_toolhead_status[attr])
+        else:
+            print '%s not found in %s'%(attr,json_toolhead_status)
+    
+    json_heating_status=json_machine_status['toolhead_0_heating_status']
+    for attr in [u'current_temperature',u'preheating',u'target_temperature']:
+        if attr in json_heating_status:
+            setattr(toolhead,attr,json_heating_status[attr])
+    botstate.toolheads.append(toolhead)
+    
+    return botstate
+
+    
