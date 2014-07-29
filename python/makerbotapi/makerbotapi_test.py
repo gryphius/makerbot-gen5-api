@@ -59,8 +59,7 @@ class MakerbotTest(unittest.TestCase):
       self.assertEqual(toolhead.preheating, 0)
       self.assertEqual(toolhead.target_temperature, 0)
       
-      
-      
+
   def testNotAuthenticated(self):
       self.handle.recv.return_value = JSONRPC_NOT_AUTHENTICATED_RESPONSE
       self.assertRaises(makerbotapi.NotAuthenticated, self.makerbot.GetSystemInformation)

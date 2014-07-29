@@ -19,18 +19,13 @@ class AuthenticationTimeout(Error):
 class NotAuthenticated(Error):
     """Acces to privileged method call denied"""
 
-
 class Toolhead(object):
-
-    
     def __init__(self):
         self.filament_fan_running=None
         self.filament_presence=None
         self.extrusion_percent=None
         self.filament_jam=None
-        
-        
-        
+
         self.current_temperature=None
         self.preheating=None
         self.target_temperature=None
@@ -54,7 +49,6 @@ class BotState(object):
     
     def GetToolHeadCount(self):
         return len(self.toolheads)
-    
 
 class Makerbot(object):
   """MakerBot."""
@@ -189,9 +183,7 @@ class Makerbot(object):
     for attr in [u'filament_fan_running',u'filament_presence',u'extrusion_percent',u'filament_jam']:
         if attr in json_toolhead_status:
             setattr(toolhead,attr,json_toolhead_status[attr])
-        else:
-            print '%s not found in %s'%(attr,json_toolhead_status)
-    
+
     json_heating_status=json_machine_status['toolhead_0_heating_status']
     for attr in [u'current_temperature',u'preheating',u'target_temperature']:
         if attr in json_heating_status:
