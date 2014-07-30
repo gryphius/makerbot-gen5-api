@@ -134,8 +134,8 @@ class Makerbot(object):
     method = 'handshake'
     params = {'username': 'conveyor',
               'host_version': '1.0'}
-    id = self.__GetRequestID()
-    jsonrpc = self.__GenerateJSONRPC(method, params, id)
+    request_id = self.__GetRequestID()
+    jsonrpc = self.__GenerateJSONRPC(method, params, request_id)
     response = self.__RPCSend(jsonrpc)
     if 'result' in response and len(response.get('result')):
       self.builder = response['result'].get('builder')
