@@ -68,7 +68,9 @@ class Makerbot(object):
     self.machine_type = None
     self.vid = None
 
-    self.request_id = 0
+    self.default_params = {'username': 'conveyor',
+                           'host_version': '1.0'}
+    self.request_id = -1 
 
     self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -105,10 +107,6 @@ class Makerbot(object):
 
   def __GetRequestID(self):
     """Increment the request id counter."""
-    if self.request_id == 0:
-      self.request_id += 1
-      return 0
-    else:
       self.request_id += 1
       return self.request_id
 
@@ -132,10 +130,8 @@ class Makerbot(object):
   def DoHandshake(self):
     """Perform handshake with MakerBot over JSON RPC."""
     method = 'handshake'
-    params = {'username': 'conveyor',
-              'host_version': '1.0'}
     request_id = self.__GetRequestID()
-    jsonrpc = self.__GenerateJSONRPC(method, params, request_id)
+    jsonrpc = self.__GenerateJSONRPC(method, self.default_params, request_id)
     response = self.__RPCSend(jsonrpc)
     if 'result' in response and len(response.get('result')):
       self.builder = response['result'].get('builder')
@@ -154,9 +150,7 @@ class Makerbot(object):
     """
     request_id = self.__GetRequestID()
     method = 'get_system_information'
-    params = {'username': 'conveyor',
-              'host_version': '1.0'}
-    jsonrpc = self.__GenerateJSONRPC(method, params, request_id)
+    jsonrpc = self.__GenerateJSONRPC(method, self.default_params, request_id)
     response = self.__RPCSend(jsonrpc)
     if u'error' in response:
         err=response[u'error']
