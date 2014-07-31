@@ -4,6 +4,7 @@
 
 """Makerbot Gen 5 API."""
 
+import sys
 import json
 import socket
 import time
@@ -103,10 +104,15 @@ class Makerbot(object):
                                'host_version': '1.0'}
         self.request_id = -1
 
-        self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.debug_jsonrpc = False
+        self.debug_fcgi = False
 
+        self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if auto_connect:
             self._connect_json_rpc()
+
+    def _debug_print(self, protocol, direction, content):
+        sys.stderr.write("(%s) %s: %s\n" % (protocol, direction, content))
 
     def _connect_json_rpc(self):
         """Create a socket connection to the MakerBot JSON RPC interface."""
@@ -147,8 +153,16 @@ class Makerbot(object):
 
         url = 'http://%s/%s?%s' % (self.host, path, encoded_args)
 
+        if self.debug_fcgi:
+            self._debug_print('FCGI', 'REQUEST', url)
+
         response = urllib2.urlopen(url)
-        result = json.load(response)
+        if self.debug_fcgi:
+            content = response.read()
+            self._debug_print('FCGI', 'RESPONSE', content)
+            result = json.loads(content)
+        else:
+            result = json.load(response)
 
         return result
 
@@ -161,8 +175,15 @@ class Makerbot(object):
         Returns:
           A JSON decoded response
         """
+        if self.debug_jsonrpc:
+            self._debug_print('JSONRPC', 'REQUEST', jsonrpc)
+
         self.rpc_socket.sendall(jsonrpc)
         response = self.rpc_socket.recv(2048)
+
+        if self.debug_jsonrpc:
+            self._debug_print('JSONRPC', 'RESPONSE', response)
+
         return json.loads(response)
 
     def authenticate_fcgi(self):
@@ -208,7 +229,7 @@ class Makerbot(object):
             raise MakerBotError(
                 'RPC Error code=%s message=%s' % (code, message))
         else:
-            self.jsonrpc_authenticated=True
+            self.jsonrpc_authenticated = True
 
     def do_handshake(self):
         """Perform handshake with MakerBot over JSON RPC."""
