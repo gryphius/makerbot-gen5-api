@@ -124,8 +124,8 @@ class Makerbot(object):
 
     def __GetRequestID(self):
         """Increment the request id counter."""
-            self.request_id += 1
-            return self.request_id
+        self.request_id += 1
+        return self.request_id
 
     def __RPCSend(self, jsonrpc):
         """Send an RPC to the MakerBot JSON RPC interface.
