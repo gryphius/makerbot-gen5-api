@@ -3,15 +3,28 @@
 """Unit tests for makerbotapi."""
 
 import socket
+import time
 import unittest
+import urllib2
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
 
 import makerbotapi
 import mock
 
+FCGI_ANSWER_PENDING_RESPONSE = '{"answer": "pending", "username": "Anonymous"}'
+FCGI_ANSWER_ACCEPTED_RESPONSE = '{"code": "abcde", "username": "Anonymous", "answer": "accepted"}'
+FCGI_CODE_RESPONSE = '{"client_id": "MakerWare", "username": "Anonymous", "status": "ok", "answer_code": "12345"}'
+FCGI_TOKEN_RESPONSE = '{"status": "success", "username": "Anonymous", "access_token": "12345abcde"}'
+FCGI_TOKEN_FAILED_RESPONSE = '{"status": "error", "message": "Access denied: auth_code=12345"}'
 
 JSONRPC_HANDSHAKE_RESPONSE = '{"result": {"commit": "5924ea5", "machine_type": "platypus", "ip": "169.254.0.79", "iserial": "1234567890ABCDEFG", "port": "9999", "firmware_version": {"minor": 2, "bugfix": 0, "major": 1, "build": 112}, "vid": 9153, "builder": "Release_Birdwing_1.0", "pid": 5, "machine_name": "MakerBot Replicator"}, "jsonrpc": "2.0", "id": 0}'
 JSONRPC_GET_SYTEM_INFORMATION_RESPONSE = '{"result": {"version": "0.0.1", "disabled_errors": [], "suspended_processes": {}, "machine_type": "tinkerbell", "machine": {"machine_error": 256, "move_buffer_available_space": 100, "step": "running", "extruder_temp": 29, "toolhead_0_status": {"current_mag": -256, "error": 0, "tool_id": 1, "filament_fan_running": false, "filament_presence": true, "extrusion_percent": 0, "filament_jam": false, "encoder_adc": 0}, "state": "idle", "preheat_percent": 0, "toolhead_0_heating_status": {"current_temperature": 29, "preheating": 0, "target_temperature": 0}}, "machine_name": "MakerBot Replicator Mini", "has_been_connected_to": true, "current_processes": {}, "ip": "192.168.23.44", "firmware_version": {"build": 112, "minor": 2, "bugfix": 0, "major": 1}}, "jsonrpc": "2.0", "id": 0}'
 JSONRPC_NOT_AUTHENTICATED_RESPONSE = '{"id": 2, "jsonrpc": "2.0", "error": {"code": -32601, "message": "method not found"}}'
+
+mock_time = mock.Mock()
 
 
 class MakerbotTest(unittest.TestCase):
@@ -24,9 +37,32 @@ class MakerbotTest(unittest.TestCase):
         self.handle.close = mock.Mock()
 
         socket.socket = mock.Mock(return_value=self.handle)
+        urllib2.urlopen = mock.Mock()
 
         self.makerbot = makerbotapi.Makerbot(
             '169.254.0.79', auto_connect=False)
+
+    @mock.patch('time.sleep', mock.Mock())
+    def test_authenticate_fcgi(self):
+        urllib2.urlopen.side_effect = [StringIO(FCGI_CODE_RESPONSE),
+                                       StringIO(FCGI_ANSWER_PENDING_RESPONSE),
+                                       StringIO(FCGI_ANSWER_ACCEPTED_RESPONSE)]
+        self.makerbot.authenticate_fcgi()
+
+        self.assertEqual(self.makerbot.auth_code, 'abcde')
+
+    @mock.patch('time.time', mock_time)
+    @mock.patch('time.sleep', mock.Mock())
+    def test_authenticate_fcgi_timeout(self):
+        urllib2.urlopen.side_effect = [StringIO(FCGI_CODE_RESPONSE),
+                                       StringIO(FCGI_ANSWER_PENDING_RESPONSE),
+                                       StringIO(FCGI_ANSWER_PENDING_RESPONSE)]
+        mock_time.side_effect = [1,
+                                 self.makerbot.auth_timeout - 5,
+                                 self.makerbot.auth_timeout + 1]
+
+        self.assertRaises(makerbotapi.AuthenticationTimeout,
+                          self.makerbot.authenticate_fcgi)
 
     def test_do_handshake(self):
         self.handle.recv.return_value = JSONRPC_HANDSHAKE_RESPONSE
@@ -43,6 +79,15 @@ class MakerbotTest(unittest.TestCase):
         self.assertEqual(self.makerbot.machine_name, 'MakerBot Replicator')
         self.assertEqual(self.makerbot.machine_type, 'platypus')
         self.assertEqual(self.makerbot.vid, 9153)
+
+    def test_get_access_token(self):
+        urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_RESPONSE)
+        self.assertEqual(self.makerbot.get_access_token('test'), '12345abcde')
+
+        urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_FAILED_RESPONSE)
+        self.assertRaises(makerbotapi.AuthenticationError,
+                          self.makerbot.get_access_token,
+                          'test')
 
     def test_get_system_information(self):
         self.handle.recv.return_value = JSONRPC_GET_SYTEM_INFORMATION_RESPONSE

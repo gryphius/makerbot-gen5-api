@@ -6,6 +6,8 @@
 
 import json
 import socket
+import time
+import urllib
 import urllib2
 
 
@@ -14,12 +16,18 @@ class Error(Exception):
     """Error."""
 
 
+class AuthenticationError(Error):
+
+    """Authentication timed out."""
+
+
 class AuthenticationTimeout(Error):
 
     """Authentication timed out."""
 
 
 class MakerBotError(Error):
+
     """MakerBot Error."""
 
 
@@ -29,6 +37,7 @@ class NotAuthenticated(Error):
 
 
 class UnexpectedJSONResponse(Error):
+
     """Unexpected JSON Response."""
 
 
@@ -72,8 +81,10 @@ class Makerbot(object):
 
     def __init__(self, ip, auth_code=None, auto_connect=True):
         self.auth_code = auth_code
+        self.auth_timeout = 120
         self.client_id = 'MakerWare'
         self.client_secret = 'python-makerbotapi'
+        self.fcgi_retry_interval = 5
         self.host = ip
         self.jsonrpc_port = 9999
 
@@ -127,6 +138,17 @@ class Makerbot(object):
         self.request_id += 1
         return self.request_id
 
+    def _send_fcgi(self, path, query_args):
+        """Send an FCGI request to the MakerBot FCGI interface."""
+        encoded_args = urllib.urlencode(query_args)
+
+        url = 'http://%s/%s?%s' % (self.host, path, encoded_args)
+
+        response = urllib2.urlopen(url)
+        result = json.load(response)
+
+        return result
+
     def _send_rpc(self, jsonrpc):
         """Send an RPC to the MakerBot JSON RPC interface.
 
@@ -139,6 +161,32 @@ class Makerbot(object):
         self.rpc_socket.sendall(jsonrpc)
         response = self.rpc_socket.recv(1024)
         return json.loads(response)
+
+    def authenticate_fcgi(self):
+        """Authenticate to the MakerBot FCGI interface."""
+        query_args = {'response_type': 'code',
+                      'client_id': self.client_id,
+                      'client_secret': self.client_secret}
+        response = self._send_fcgi('auth', query_args)
+
+        answer_code = response['answer_code']
+
+        query_args = {'response_type': 'answer',
+                      'client_id': self.client_id,
+                      'client_secret': self.client_secret,
+                      'answer_code': answer_code}
+        start_time = time.time()
+        while True:
+            response = self._send_fcgi('auth', query_args)
+
+            if response.get('answer') == 'accepted':
+                self.auth_code = response.get('code')
+                break
+
+            if time.time() - start_time >= self.auth_timeout:
+                raise AuthenticationTimeout
+
+            time.sleep(self.fcgi_retry_interval)
 
     def authenticate_json_rpc(self):
         """Authenticate to the MakerBot JSON RPC interface."""
@@ -160,6 +208,19 @@ class Makerbot(object):
             self.machine_type = response['result'].get('machine_type')
             self.vid = response['result'].get('vid')
 
+    def get_access_token(self, context):
+        query_args = {'response_type': 'token',
+                      'client_id': self.client_id,
+                      'client_secret': self.client_secret,
+                      'auth_code': self.auth_code,
+                      'context': context}
+        response = self._send_fcgi('auth', query_args)
+
+        if response.get('status') == 'success':
+            return response.get('access_token')
+        else:
+            raise AuthenticationError(response.get('message'))
+
     def get_system_information(self):
         """Get system information from MakerBot over JSON RPC.
 
@@ -180,7 +241,8 @@ class Makerbot(object):
             if code == -32601:
                 raise NotAuthenticated(message)
             else:
-                raise MakerBotError('RPC Error code=%s message=%s' % (code, message))
+                raise MakerBotError(
+                    'RPC Error code=%s message=%s' % (code, message))
 
         bot_state = BotState()
         if 'result' not in response:
@@ -197,7 +259,10 @@ class Makerbot(object):
         # multiple heads anyway?)
         toolhead = Toolhead()
         json_toolhead_status = json_machine_status['toolhead_0_status']
-        for attr in ['filament_fan_running', 'filament_presence', 'extrusion_percent', 'filament_jam']:
+        for attr in ['extrusion_percent',
+                     'filament_fan_running',
+                     'filament_jam',
+                     'filament_presence']:
             if attr in json_toolhead_status:
                 setattr(toolhead, attr, json_toolhead_status[attr])
 
