@@ -28,10 +28,10 @@ class MakerbotTest(unittest.TestCase):
         self.makerbot = makerbotapi.Makerbot(
             '169.254.0.79', auto_connect=False)
 
-    def testDoHandshake(self):
+    def test_do_handshake(self):
         self.handle.recv.return_value = JSONRPC_HANDSHAKE_RESPONSE
 
-        self.makerbot.DoHandshake()
+        self.makerbot.do_handshake()
 
         self.assertEqual(self.makerbot.builder, 'Release_Birdwing_1.0')
         self.assertEqual(self.makerbot.commit, '5924ea5')
@@ -44,15 +44,15 @@ class MakerbotTest(unittest.TestCase):
         self.assertEqual(self.makerbot.machine_type, 'platypus')
         self.assertEqual(self.makerbot.vid, 9153)
 
-    def testGetSystemInformation(self):
+    def test_get_system_information(self):
         self.handle.recv.return_value = JSONRPC_GET_SYTEM_INFORMATION_RESPONSE
-        botstate = self.makerbot.GetSystemInformation()
+        botstate = self.makerbot.get_system_information()
         self.assertEqual(botstate.step, botstate.STEP_RUNNING)
         self.assertEqual(botstate.extruder_temp, 29)
         self.assertEqual(botstate.state, botstate.STATE_IDLE)
         self.assertEqual(botstate.preheat_percent, 0)
 
-        self.assertEqual(botstate.GetToolHeadCount(), 1)
+        self.assertEqual(botstate.get_tool_head_count(), 1)
         toolhead = botstate.toolheads[0]
         self.assertEqual(toolhead.filament_fan_running, False)
         self.assertEqual(toolhead.filament_presence, True)
@@ -65,7 +65,7 @@ class MakerbotTest(unittest.TestCase):
     def testNotAuthenticated(self):
         self.handle.recv.return_value = JSONRPC_NOT_AUTHENTICATED_RESPONSE
         self.assertRaises(
-            makerbotapi.NotAuthenticated, self.makerbot.GetSystemInformation)
+            makerbotapi.NotAuthenticated, self.makerbot.get_system_information)
 
 
 if __name__ == '__main__':
