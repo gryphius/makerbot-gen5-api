@@ -74,6 +74,9 @@ class BotState(object):
     def get_tool_head_count(self):
         return len(self.toolheads)
 
+    def __str__(self):
+        return '<Bostate state=%s temp=%s>' % (self.state, self.extruder_temp)
+
 
 class Makerbot(object):
 
@@ -190,7 +193,23 @@ class Makerbot(object):
 
     def authenticate_json_rpc(self):
         """Authenticate to the MakerBot JSON RPC interface."""
-        pass
+        request_id = self._get_request_id()
+        method = 'authenticate'
+        params = {
+            'access_token': self.get_access_token(context='jsonrpc'),
+        }
+        jsonrpc = self._generate_json_rpc(
+            method, params, request_id)
+        response = self._send_rpc(jsonrpc)
+        if 'error' in response:
+            err = response['error']
+            code = err['code']
+            message = err['message']
+            raise MakerBotError(
+                'RPC Error code=%s message=%s' % (code, message))
+        else:
+            print "YOLO"
+            self.jsonrpc_authenticated=True
 
     def do_handshake(self):
         """Perform handshake with MakerBot over JSON RPC."""
@@ -229,8 +248,11 @@ class Makerbot(object):
         """
         request_id = self._get_request_id()
         method = 'get_system_information'
+        params = {
+            'username': 'conveyor'
+        }
         jsonrpc = self._generate_json_rpc(
-            method, self.default_params, request_id)
+            method, params, request_id)
         response = self._send_rpc(jsonrpc)
         if 'error' in response:
             err = response['error']
