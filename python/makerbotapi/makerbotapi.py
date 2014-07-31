@@ -10,6 +10,8 @@ import socket
 import time
 import urllib
 import urllib2
+import ctypes
+import struct
 
 
 class Error(Exception):
@@ -259,6 +261,17 @@ class Makerbot(object):
             return response.get('access_token')
         else:
             raise AuthenticationError(response.get('message'))
+
+    def _get_raw_camera_image_data(self):
+        """Request the current camera data
+
+        Returns:
+          a tuple total_blob_size, image_width, image_height, pixel_format, latest_cached_image
+        """
+        access_token = self.get_access_token('camera')
+        url = 'http://%s/camera?token=%s' % (self.host, access_token)
+        data = urllib2.urlopen(url).read()
+        return struct.unpack('!IIII{0}s'.format(len(data) - ctypes.sizeof(ctypes.c_uint32 * 4)), data)
 
     def get_system_information(self):
         """Get system information from MakerBot over JSON RPC.

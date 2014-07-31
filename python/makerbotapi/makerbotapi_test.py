@@ -118,7 +118,13 @@ class MakerbotTest(unittest.TestCase):
         self.handle.recv.return_value = JSONRPC_AUTHENTICATED_RESPONSE
         self.makerbot.authenticate_json_rpc()
         self.assertTrue(self.makerbot.jsonrpc_authenticated)
-        
+
+    def test__get_raw_camera_image_data(self):
+        urllib2.urlopen.return_value = open('test_output/camera_response')
+        self.makerbot.get_access_token = mock.Mock(return_value='abcdef1234')
+        tpl = self.makerbot._get_raw_camera_image_data()
+        self.assertEquals(tpl[:4], (153616, 320, 240, 1))
+
 
 if __name__ == '__main__':
     unittest.main()
