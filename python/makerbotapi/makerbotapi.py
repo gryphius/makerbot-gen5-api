@@ -162,7 +162,7 @@ class Makerbot(object):
           A JSON decoded response
         """
         self.rpc_socket.sendall(jsonrpc)
-        response = self.rpc_socket.recv(1024)
+        response = self.rpc_socket.recv(2048)
         return json.loads(response)
 
     def authenticate_fcgi(self):
