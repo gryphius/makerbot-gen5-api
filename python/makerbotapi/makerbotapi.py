@@ -208,7 +208,6 @@ class Makerbot(object):
             raise MakerBotError(
                 'RPC Error code=%s message=%s' % (code, message))
         else:
-            print "YOLO"
             self.jsonrpc_authenticated=True
 
     def do_handshake(self):
