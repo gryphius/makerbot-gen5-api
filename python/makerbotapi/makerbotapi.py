@@ -13,6 +13,11 @@ import urllib2
 import ctypes
 import struct
 
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
+
 
 class Error(Exception):
 
@@ -27,6 +32,11 @@ class AuthenticationError(Error):
 class AuthenticationTimeout(Error):
 
     """Authentication timed out."""
+
+
+class InvalidContextError(Error):
+
+    """Invalid context."""
 
 
 class MakerBotError(Error):
@@ -112,8 +122,11 @@ class Makerbot(object):
         self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if auto_connect:
             self._connect_json_rpc()
+            self.do_handshake()
 
     def _debug_print(self, protocol, direction, content):
+        # TODO(gryphius): Convert this to use logging.debug once we implement
+        # logging module support
         sys.stderr.write("(%s) %s: %s\n" % (protocol, direction, content))
 
     def _connect_json_rpc(self):
@@ -250,6 +263,19 @@ class Makerbot(object):
             self.vid = response['result'].get('vid')
 
     def get_access_token(self, context):
+        """Get an OAuth access token from the MakerBot FCGI interface.
+
+        Args:
+          context: Context of the token. Valid contexts are 'camera', 'jsonrpc', 'put'.
+
+        Returns:
+          A string containing the access token for the specified context.
+        """
+        valid_contexts = ['jsonrpc', 'put', 'camera']
+
+        if context not in valid_contexts:
+            raise InvalidContextError
+
         query_args = {'response_type': 'token',
                       'client_id': self.client_id,
                       'client_secret': self.client_secret,
@@ -266,7 +292,7 @@ class Makerbot(object):
         """Request the current camera data
 
         Returns:
-          a tuple total_blob_size, image_width, image_height, pixel_format, latest_cached_image
+          A tuple total_blob_size, image_width, image_height, pixel_format, latest_cached_image
         """
         access_token = self.get_access_token('camera')
         url = 'http://%s/camera?token=%s' % (self.host, access_token)
@@ -328,3 +354,80 @@ class Makerbot(object):
         bot_state.toolheads.append(toolhead)
 
         return bot_state
+
+    def _rgb_clamp(self, x):
+        """Clamp an RGB value between 0 and 255.
+
+        Args:
+            x: Value to clamp
+
+        Returns:
+          The clamped value
+        """
+        if x < 0:
+            return 0
+        elif x > 255:
+            return 255
+        else:
+            return x
+
+    def _rgb_rows_to_png(self, rgb_rows, output_file):
+        """Save RGB rows as returned by self._yuv_to_rgb_rows() as PNG.
+
+        Args:
+            rgb_rows: RGB rows as returned by self._yuv_to_rgb_rows()
+            output_file: PNG file to save
+        """
+        f = open(output_file, 'wb')
+        png_file = png.Writer(width, height)
+        png_file(f, rgb_rows)
+        f.close()
+
+    def save_camera_png(self, output_file):
+        """Save an image from the MakerBot camera in PNG format.
+
+        Args:
+            output_file: PNG file to save.
+        """
+        _, width, height, _, yuv_image = self._get_raw_camera_image_data()
+        rgb_rows = self._yuv_to_rgb_rows(StringIO(yuv_image), width, height)
+        self._rgb_rows_to_png(rgb_rows, output_file)
+
+    def _yuv_to_rgb_rows(self, yuv_image, width, height):
+        """Convert YUYV422 to RGB pixels.
+
+        Args:
+            yuv_image: A file-like object containing YUYV422 image data
+            width: Width in pixels
+            height: Height in pixels
+
+        Returns:
+          A list of lists containing RGB pixel values.
+        """
+        rgb_rows = []
+        for row in range(0, height):
+            rgb_row = []
+            for column in range(0, width / 2):
+                # http://en.wikipedia.org/wiki/YUV#Y.27UV422_to_RGB888_conversion
+                # Modified for MakerBot YUYV format
+                y1 = ord(yuv_image.read(1))
+                u = ord(yuv_image.read(1))
+                y2 = ord(yuv_image.read(1))
+                v = ord(yuv_image.read(1))
+
+                # http://www.lems.brown.edu/vision/vxl_doc/html/core/vidl_vil1/html/vidl__vil1__yuv__2__rgb_8h.html
+                R = 1.164 * (y1 - 16) + 1.596 * (v - 128)
+                G = 1.164 * (y1 - 16) - 0.813 * (v - 128) - 0.391 * (u - 128)
+                B = 1.164 * (y1 - 16) + 2.018 * (u - 128)
+                rgb_row.append(rgb_clamp(int(R)))
+                rgb_row.append(rgb_clamp(int(G)))
+                rgb_row.append(rgb_clamp(int(B)))
+
+                R = 1.164 * (y2 - 16) + 1.596 * (v - 128)
+                G = 1.164 * (y2 - 16) - 0.813 * (v - 128) - 0.391 * (u - 128)
+                B = 1.164 * (y2 - 16) + 2.018 * (u - 128)
+                rgb_row.append(rgb_clamp(int(R)))
+                rgb_row.append(rgb_clamp(int(G)))
+                rgb_row.append(rgb_clamp(int(B)))
+            rgb_rows.append(rgb_row)
+        return rgb_rows
