@@ -23,6 +23,7 @@ FCGI_TOKEN_FAILED_RESPONSE = '{"status": "error", "message": "Access denied: aut
 JSONRPC_HANDSHAKE_RESPONSE = '{"result": {"commit": "5924ea5", "machine_type": "platypus", "ip": "169.254.0.79", "iserial": "1234567890ABCDEFG", "port": "9999", "firmware_version": {"minor": 2, "bugfix": 0, "major": 1, "build": 112}, "vid": 9153, "builder": "Release_Birdwing_1.0", "pid": 5, "machine_name": "MakerBot Replicator"}, "jsonrpc": "2.0", "id": 0}'
 JSONRPC_GET_SYTEM_INFORMATION_RESPONSE = '{"result": {"version": "0.0.1", "disabled_errors": [], "suspended_processes": {}, "machine_type": "tinkerbell", "machine": {"machine_error": 256, "move_buffer_available_space": 100, "step": "running", "extruder_temp": 29, "toolhead_0_status": {"current_mag": -256, "error": 0, "tool_id": 1, "filament_fan_running": false, "filament_presence": true, "extrusion_percent": 0, "filament_jam": false, "encoder_adc": 0}, "state": "idle", "preheat_percent": 0, "toolhead_0_heating_status": {"current_temperature": 29, "preheating": 0, "target_temperature": 0}}, "machine_name": "MakerBot Replicator Mini", "has_been_connected_to": true, "current_processes": {}, "ip": "192.168.23.44", "firmware_version": {"build": 112, "minor": 2, "bugfix": 0, "major": 1}}, "jsonrpc": "2.0", "id": 0}'
 JSONRPC_NOT_AUTHENTICATED_RESPONSE = '{"id": 2, "jsonrpc": "2.0", "error": {"code": -32601, "message": "method not found"}}'
+JSONRPC_AUTHENTICATED_RESPONSE = '{"jsonrpc": "2.0", "result": null, "id": 0}'
 
 mock_time = mock.Mock()
 
@@ -111,6 +112,18 @@ class MakerbotTest(unittest.TestCase):
         self.handle.recv.return_value = JSONRPC_NOT_AUTHENTICATED_RESPONSE
         self.assertRaises(
             makerbotapi.NotAuthenticated, self.makerbot.get_system_information)
+
+    def test_authenticate_json_rpc(self):
+        urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_RESPONSE)
+        self.handle.recv.return_value = JSONRPC_AUTHENTICATED_RESPONSE
+        self.makerbot.authenticate_json_rpc()
+        self.assertTrue(self.makerbot.jsonrpc_authenticated)
+
+    def test__get_raw_camera_image_data(self):
+        urllib2.urlopen.return_value = open('test_output/camera_response')
+        self.makerbot.get_access_token = mock.Mock(return_value='abcdef1234')
+        tpl = self.makerbot._get_raw_camera_image_data()
+        self.assertEquals(tpl[:4], (153616, 320, 240, 1))
 
 
 if __name__ == '__main__':

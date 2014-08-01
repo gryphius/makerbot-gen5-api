@@ -4,11 +4,14 @@
 
 """Makerbot Gen 5 API."""
 
+import sys
 import json
 import socket
 import time
 import urllib
 import urllib2
+import ctypes
+import struct
 
 
 class Error(Exception):
@@ -74,6 +77,9 @@ class BotState(object):
     def get_tool_head_count(self):
         return len(self.toolheads)
 
+    def __str__(self):
+        return '<Bostate state=%s temp=%s>' % (self.state, self.extruder_temp)
+
 
 class Makerbot(object):
 
@@ -100,10 +106,15 @@ class Makerbot(object):
                                'host_version': '1.0'}
         self.request_id = -1
 
-        self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.debug_jsonrpc = False
+        self.debug_fcgi = False
 
+        self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if auto_connect:
             self._connect_json_rpc()
+
+    def _debug_print(self, protocol, direction, content):
+        sys.stderr.write("(%s) %s: %s\n" % (protocol, direction, content))
 
     def _connect_json_rpc(self):
         """Create a socket connection to the MakerBot JSON RPC interface."""
@@ -144,8 +155,16 @@ class Makerbot(object):
 
         url = 'http://%s/%s?%s' % (self.host, path, encoded_args)
 
+        if self.debug_fcgi:
+            self._debug_print('FCGI', 'REQUEST', url)
+
         response = urllib2.urlopen(url)
-        result = json.load(response)
+        if self.debug_fcgi:
+            content = response.read()
+            self._debug_print('FCGI', 'RESPONSE', content)
+            result = json.loads(content)
+        else:
+            result = json.load(response)
 
         return result
 
@@ -158,8 +177,15 @@ class Makerbot(object):
         Returns:
           A JSON decoded response
         """
+        if self.debug_jsonrpc:
+            self._debug_print('JSONRPC', 'REQUEST', jsonrpc)
+
         self.rpc_socket.sendall(jsonrpc)
-        response = self.rpc_socket.recv(1024)
+        response = self.rpc_socket.recv(2048)
+
+        if self.debug_jsonrpc:
+            self._debug_print('JSONRPC', 'RESPONSE', response)
+
         return json.loads(response)
 
     def authenticate_fcgi(self):
@@ -190,7 +216,22 @@ class Makerbot(object):
 
     def authenticate_json_rpc(self):
         """Authenticate to the MakerBot JSON RPC interface."""
-        pass
+        request_id = self._get_request_id()
+        method = 'authenticate'
+        params = {
+            'access_token': self.get_access_token(context='jsonrpc'),
+        }
+        jsonrpc = self._generate_json_rpc(
+            method, params, request_id)
+        response = self._send_rpc(jsonrpc)
+        if 'error' in response:
+            err = response['error']
+            code = err['code']
+            message = err['message']
+            raise MakerBotError(
+                'RPC Error code=%s message=%s' % (code, message))
+        else:
+            self.jsonrpc_authenticated = True
 
     def do_handshake(self):
         """Perform handshake with MakerBot over JSON RPC."""
@@ -221,6 +262,17 @@ class Makerbot(object):
         else:
             raise AuthenticationError(response.get('message'))
 
+    def _get_raw_camera_image_data(self):
+        """Request the current camera data
+
+        Returns:
+          a tuple total_blob_size, image_width, image_height, pixel_format, latest_cached_image
+        """
+        access_token = self.get_access_token('camera')
+        url = 'http://%s/camera?token=%s' % (self.host, access_token)
+        data = urllib2.urlopen(url).read()
+        return struct.unpack('!IIII{0}s'.format(len(data) - ctypes.sizeof(ctypes.c_uint32 * 4)), data)
+
     def get_system_information(self):
         """Get system information from MakerBot over JSON RPC.
 
@@ -229,8 +281,11 @@ class Makerbot(object):
         """
         request_id = self._get_request_id()
         method = 'get_system_information'
+        params = {
+            'username': 'conveyor'
+        }
         jsonrpc = self._generate_json_rpc(
-            method, self.default_params, request_id)
+            method, params, request_id)
         response = self._send_rpc(jsonrpc)
         if 'error' in response:
             err = response['error']
