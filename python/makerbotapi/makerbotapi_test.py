@@ -83,7 +83,7 @@ class MakerbotTest(unittest.TestCase):
 
     def test_get_access_token(self):
         urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_RESPONSE)
-        self.assertEqual(self.makerbot.get_access_token('test'), '12345abcde')
+        self.assertEqual(self.makerbot.get_access_token('jsonrpc'), '12345abcde')
 
         self.assertRaises(makerbotapi.InvalidContextError,
                           self.makerbot.get_access_token,
