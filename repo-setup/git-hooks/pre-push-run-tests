@@ -6,10 +6,11 @@ protected_branch='master'
 repo_root=$(git rev-parse --show-toplevel)
 
 # Check if we actually have commits to push
-#commits=`git log @{u}..`
-#if [ -z "$commits" ]; then
-#  exit 0
-#fi
+commits=`git log @{u}..`
+if [ -z "$commits" ]; then
+  echo "INFO: No commits to push. Skipping tests."
+  exit 0
+fi
 
 # Stash any uncommitted changes
 git stash -q --keep-index
