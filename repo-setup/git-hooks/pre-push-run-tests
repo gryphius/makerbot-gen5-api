@@ -1,13 +1,15 @@
 #!/bin/bash 
 
+echo "INFO: Running pre-push hook (run-tests)"
+
 protected_branch='master'
 repo_root=$(git rev-parse --show-toplevel)
 
 # Check if we actually have commits to push
-commits=`git log @{u}..`
-if [ -z "$commits" ]; then
-  exit 0
-fi
+#commits=`git log @{u}..`
+#if [ -z "$commits" ]; then
+#  exit 0
+#fi
 
 # Stash any uncommitted changes
 git stash -q --keep-index
@@ -15,9 +17,8 @@ git stash -q --keep-index
 current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 
 if [[ $current_branch = $protected_branch ]]; then
-  echo "INFO: Running unittest's..."
   for py_test in $(git ls-tree --full-tree -r --name-only HEAD | grep test.py); do
-    echo -n "INFO: Running ${py_test}..."
+    echo -n "INFO: Running test ${py_test}..."
     test_output=$(python $repo_root/${py_test} 2>&1)
     RESULT=$?
     if [ $RESULT -ne 0 ]; then
@@ -32,4 +33,4 @@ if [[ $current_branch = $protected_branch ]]; then
   done
 fi
 git stash pop -q
-exit 1
+exit 0

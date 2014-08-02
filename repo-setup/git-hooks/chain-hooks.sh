@@ -9,12 +9,13 @@
 data=$(cat)
 exitcodes=()
 hookname=`basename $0`
+echo "INFO: Running ${hookname} hooks..."
 
 # Run each hook, passing through STDIN and storing the exit code.
 # We don't want to bail at the first failure, as the user might
 # then bypass the hooks without knowing about additional issues.
 
-for hook in $GIT_DIR/hooks/$hookname-*; do
+for hook in .git/hooks/$hookname-*; do
   test -x "$hook" || continue
   echo "$data" | "$hook"
   exitcodes+=($?)
