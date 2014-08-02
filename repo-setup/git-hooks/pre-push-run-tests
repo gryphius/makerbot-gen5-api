@@ -1,0 +1,26 @@
+#!/bin/bash 
+
+protected_branch='master'
+
+# Check if we actually have commits to push
+commits=`git log @{u}..`
+if [ -z "$commits" ]; then
+  exit 0
+fi
+
+current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
+
+if [[ $current_branch = $protected_branch ]]; then
+  echo "INFO: Running unittest's..."
+  for py_test in $(git ls-files | grep test.py); do
+    echo "INFO: Running ${py_test}"
+    python ${py_test}
+    RESULT=$?
+    if [ $RESULT -ne 0 ]; then
+      echo "ERROR: Push aborted"
+      echo "ERROR: Tests for ${py_test} are failing!"
+      exit 1
+    fi
+  done
+fi
+exit 0

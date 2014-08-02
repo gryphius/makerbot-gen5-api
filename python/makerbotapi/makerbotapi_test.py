@@ -2,6 +2,7 @@
 
 """Unit tests for makerbotapi."""
 
+import os
 import socket
 import time
 import unittest
@@ -89,11 +90,10 @@ class MakerbotTest(unittest.TestCase):
                           self.makerbot.get_access_token,
                           'test')
 
-
         urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_FAILED_RESPONSE)
         self.assertRaises(makerbotapi.AuthenticationError,
                           self.makerbot.get_access_token,
-                          'test')
+                          'jsonrpc')
 
     def test_get_system_information(self):
         self.handle.recv.return_value = JSONRPC_GET_SYTEM_INFORMATION_RESPONSE
@@ -125,7 +125,9 @@ class MakerbotTest(unittest.TestCase):
         self.assertTrue(self.makerbot.jsonrpc_authenticated)
 
     def test__get_raw_camera_image_data(self):
-        urllib2.urlopen.return_value = open('test_output/camera_response')
+        curr_path = os.path.dirname(__file__)
+        camera_response = os.path.join(curr_path, 'test_output/camera_response')
+        urllib2.urlopen.return_value = open(camera_response)
         self.makerbot.get_access_token = mock.Mock(return_value='abcdef1234')
         tpl = self.makerbot._get_raw_camera_image_data()
         self.assertEquals(tpl[:4], (153616, 320, 240, 1))
