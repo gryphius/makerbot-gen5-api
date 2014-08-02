@@ -1,5 +1,6 @@
 #!/bin/bash 
 
+
 protected_branch='master'
 repo_root=$(git rev-parse --show-toplevel)
 
