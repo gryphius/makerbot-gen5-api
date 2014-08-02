@@ -85,6 +85,10 @@ class MakerbotTest(unittest.TestCase):
         urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_RESPONSE)
         self.assertEqual(self.makerbot.get_access_token('test'), '12345abcde')
 
+        self.assertRaises(makerbotapi.InvalidContextError,
+                          self.makerbot.get_access_token,
+                          'test')
+
         urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_FAILED_RESPONSE)
         self.assertRaises(makerbotapi.AuthenticationError,
                           self.makerbot.get_access_token,
