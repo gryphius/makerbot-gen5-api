@@ -1,6 +1,7 @@
 #!/bin/bash 
 
 protected_branch='master'
+repo_root=$(git rev-parse --show-toplevel)
 
 # Check if we actually have commits to push
 commits=`git log @{u}..`
@@ -13,14 +14,17 @@ current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 if [[ $current_branch = $protected_branch ]]; then
   echo "INFO: Running unittest's..."
   for py_test in $(git ls-tree --full-tree -r --name-only HEAD | grep test.py); do
-    echo "INFO: Running ${py_test}"
-    python ${py_test}
+    echo -n "INFO: Running ${py_test}..."
+    test_output=$(python $repo_root/${py_test} 2>&1)
     RESULT=$?
     if [ $RESULT -ne 0 ]; then
+      echo $'\e[0;31m''FAILED'$'\e[0m'
+      echo "$test_output"
       echo "ERROR: Push aborted"
       echo "ERROR: Tests for ${py_test} are failing!"
       exit 1
     fi
+    echo $'\e[0;32m''PASSED'$'\e[0m'
   done
 fi
 exit 1
