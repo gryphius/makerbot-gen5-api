@@ -1,6 +1,5 @@
 #!/bin/bash 
 
-
 protected_branch='master'
 repo_root=$(git rev-parse --show-toplevel)
 
@@ -9,6 +8,9 @@ commits=`git log @{u}..`
 if [ -z "$commits" ]; then
   exit 0
 fi
+
+# Stash any uncommitted changes
+git stash -q --keep-index
 
 current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 
@@ -23,9 +25,11 @@ if [[ $current_branch = $protected_branch ]]; then
       echo "$test_output"
       echo "ERROR: Push aborted"
       echo "ERROR: Tests for ${py_test} are failing!"
+      git stash pop -q
       exit 1
     fi
     echo $'\e[0;32m''PASSED'$'\e[0m'
   done
 fi
+git stash pop -q
 exit 1
