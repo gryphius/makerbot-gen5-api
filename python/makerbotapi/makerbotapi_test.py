@@ -125,7 +125,6 @@ class MakerbotTest(unittest.TestCase):
         self.assertTrue(self.makerbot.jsonrpc_authenticated)
 
     def test__get_raw_camera_image_data(self):
-        raise
         curr_path = os.path.dirname(__file__)
         camera_response = os.path.join(curr_path, 'test_output/camera_response')
         urllib2.urlopen.return_value = open(camera_response)
