@@ -26,6 +26,9 @@ JSONRPC_GET_SYTEM_INFORMATION_RESPONSE = '{"result": {"version": "0.0.1", "disab
 JSONRPC_NOT_AUTHENTICATED_RESPONSE = '{"id": 2, "jsonrpc": "2.0", "error": {"code": -32601, "message": "method not found"}}'
 JSONRPC_AUTHENTICATED_RESPONSE = '{"jsonrpc": "2.0", "result": null, "id": 0}'
 
+BROADCAST_RESPONSE = '{"commit": "5924ea5", "machine_type": "platypus", "ip": "169.254.0.79", "iserial": "1234567890ABCDEFG", "port": "9999", "firmware_version": {"minor": 2, "bugfix": 0, "major": 1, "build": 112}, "vid": 9153, "builder": "Release_Birdwing_1.0", "pid": 5, "machine_name": "MakerBot Replicator"}'
+
+
 mock_time = mock.Mock()
 
 
@@ -84,7 +87,8 @@ class MakerbotTest(unittest.TestCase):
 
     def test_get_access_token(self):
         urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_RESPONSE)
-        self.assertEqual(self.makerbot.get_access_token('jsonrpc'), '12345abcde')
+        self.assertEqual(
+            self.makerbot.get_access_token('jsonrpc'), '12345abcde')
 
         self.assertRaises(makerbotapi.InvalidContextError,
                           self.makerbot.get_access_token,
@@ -126,11 +130,30 @@ class MakerbotTest(unittest.TestCase):
 
     def test__get_raw_camera_image_data(self):
         curr_path = os.path.dirname(__file__)
-        camera_response = os.path.join(curr_path, 'test_output/camera_response')
+        camera_response = os.path.join(
+            curr_path, 'test_output/camera_response')
         urllib2.urlopen.return_value = open(camera_response)
         self.makerbot.get_access_token = mock.Mock(return_value='abcdef1234')
         tpl = self.makerbot._get_raw_camera_image_data()
         self.assertEquals(tpl[:4], (153616, 320, 240, 1))
+
+
+class ModuleTest(unittest.TestCase):
+
+    def setUp(self):
+        self.handle = mock.Mock()
+        self.handle.recvfrom = mock.Mock()
+        self.handle.sendto = mock.Mock()
+        self.handle.recvfrom.return_value = ('', '1.2.3.4')
+        self.handle.close = mock.Mock()
+
+    def test_discover(self):
+        sock_mock = mock.Mock()
+        sock_mock.recvfrom.return_value = (BROADCAST_RESPONSE, '192.168.1.1')
+        socket.socket = mock.Mock(return_value=sock_mock)
+        ans = makerbotapi.discover()
+        self.assertEquals(
+            ans, [('192.168.1.1', u'MakerBot Replicator', u'1234567890ABCDEFG')])
 
 
 if __name__ == '__main__':

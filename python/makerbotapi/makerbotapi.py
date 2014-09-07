@@ -67,6 +67,48 @@ class Toolhead(object):
         self.target_temperature = None
 
 
+def discover():
+    """Discover Makerbot Gen5 in the network
+
+        Args:
+
+        Returns:
+          a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
+    """
+    bcaddr = '255.255.255.255'
+    target_port = 12307
+    listen_port = 12308
+    source_port = 12309
+
+    broadcastsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    broadcastsocket.bind(('0.0.0.0', source_port))
+
+    answersocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    discover_request = '{"command": "broadcast"}'
+    answersocket.bind(('0.0.0.0', listen_port))
+    answersocket.settimeout(3)
+
+    answers = []
+    knownbotips = []
+    for _ in range(3):
+        broadcastsocket.sendto(discover_request, (bcaddr, target_port),)
+        try:
+            data, fromaddr = answersocket.recvfrom(1024)
+            if fromaddr not in knownbotips:
+                knownbotips.append(fromaddr)
+                infodic = json.loads(data)
+                machine_name = infodic['machine_name']
+                serial = infodic['iserial']
+                answers.append((fromaddr, machine_name, serial),)
+            else:
+                continue
+        except socket.timeout:
+            continue
+        time.sleep(1)
+    return answers
+
+
 class BotState(object):
 
     """Current Bot status data object"""
