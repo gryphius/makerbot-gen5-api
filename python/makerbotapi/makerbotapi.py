@@ -12,6 +12,7 @@ import urllib
 import urllib2
 import ctypes
 import struct
+import png
 
 try:
     from cStringIO import StringIO
@@ -413,7 +414,7 @@ class Makerbot(object):
         else:
             return x
 
-    def _rgb_rows_to_png(self, rgb_rows, output_file):
+    def _rgb_rows_to_png(self, rgb_rows, width, height, output_file):
         """Save RGB rows as returned by self._yuv_to_rgb_rows() as PNG.
 
         Args:
@@ -422,7 +423,7 @@ class Makerbot(object):
         """
         f = open(output_file, 'wb')
         png_file = png.Writer(width, height)
-        png_file(f, rgb_rows)
+        png_file.write(f, rgb_rows)
         f.close()
 
     def save_camera_png(self, output_file):
@@ -433,7 +434,7 @@ class Makerbot(object):
         """
         _, width, height, _, yuv_image = self._get_raw_camera_image_data()
         rgb_rows = self._yuv_to_rgb_rows(StringIO(yuv_image), width, height)
-        self._rgb_rows_to_png(rgb_rows, output_file)
+        self._rgb_rows_to_png(rgb_rows, width, height, output_file)
 
     def _yuv_to_rgb_rows(self, yuv_image, width, height):
         """Convert YUYV422 to RGB pixels.
@@ -461,15 +462,15 @@ class Makerbot(object):
                 R = 1.164 * (y1 - 16) + 1.596 * (v - 128)
                 G = 1.164 * (y1 - 16) - 0.813 * (v - 128) - 0.391 * (u - 128)
                 B = 1.164 * (y1 - 16) + 2.018 * (u - 128)
-                rgb_row.append(rgb_clamp(int(R)))
-                rgb_row.append(rgb_clamp(int(G)))
-                rgb_row.append(rgb_clamp(int(B)))
+                rgb_row.append(self._rgb_clamp(int(R)))
+                rgb_row.append(self._rgb_clamp(int(G)))
+                rgb_row.append(self._rgb_clamp(int(B)))
 
                 R = 1.164 * (y2 - 16) + 1.596 * (v - 128)
                 G = 1.164 * (y2 - 16) - 0.813 * (v - 128) - 0.391 * (u - 128)
                 B = 1.164 * (y2 - 16) + 2.018 * (u - 128)
-                rgb_row.append(rgb_clamp(int(R)))
-                rgb_row.append(rgb_clamp(int(G)))
-                rgb_row.append(rgb_clamp(int(B)))
+                rgb_row.append(self._rgb_clamp(int(R)))
+                rgb_row.append(self._rgb_clamp(int(G)))
+                rgb_row.append(self._rgb_clamp(int(B)))
             rgb_rows.append(rgb_row)
         return rgb_rows
