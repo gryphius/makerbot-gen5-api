@@ -101,7 +101,7 @@ def discover():
                 infodic = json.loads(data)
                 machine_name = infodic['machine_name']
                 serial = infodic['iserial']
-                answers.append((fromaddr, machine_name, serial),)
+                answers.append((fromaddr[0], machine_name, serial),)
             else:
                 continue
         except socket.timeout:
