@@ -149,7 +149,8 @@ class ModuleTest(unittest.TestCase):
 
     def test_discover(self):
         sock_mock = mock.Mock()
-        sock_mock.recvfrom.return_value = (BROADCAST_RESPONSE, '192.168.1.1')
+        sock_mock.recvfrom.return_value = (
+            BROADCAST_RESPONSE, ('192.168.1.1', 12345))
         socket.socket = mock.Mock(return_value=sock_mock)
         ans = makerbotapi.discover()
         self.assertEquals(
