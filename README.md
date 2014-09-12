@@ -2,7 +2,8 @@
 
 the goal of this project is to provide a python api for controlling the new makerbot 5th generation 3D printers
 
- * oauth authentication (fcgi / jsonrpc)
+ * oauth authentication (fcgi / jsonrpc) 
  * get printer status (nozzle temp, print progress, ...)
  * access the camera
 
+[![Build Status](https://travis-ci.org/gryphius/makerbot-gen5-api.svg)](https://travis-ci.org/gryphius/makerbot-gen5-api)
