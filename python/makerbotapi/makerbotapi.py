@@ -389,16 +389,14 @@ class Makerbot(object):
         for attr in ['tool_id',
                      'filament_presence',
                      'preheating',
+                     'index',
                      'tool_present',
                      'current_temperature',
                      'target_temperature']:
             if attr in json_toolhead_status:
                 setattr(toolhead, attr, json_toolhead_status[attr])
 
-        json_heating_status = json_machine_status['toolhead_0_heating_status']
-        for attr in ['current_temperature', 'preheating', 'target_temperature']:
-            if attr in json_heating_status:
-                setattr(toolhead, attr, json_heating_status[attr])
+
         bot_state.toolheads.append(toolhead)
 
         return bot_state
