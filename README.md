@@ -10,6 +10,5 @@
 ### Installing:
  * Clone/download the API
  * Run "python/setup.py" (Tested with Python 2.7)
- * 
  
 [![Build Status](https://travis-ci.org/gryphius/makerbot-gen5-api.svg)](https://travis-ci.org/gryphius/makerbot-gen5-api)
