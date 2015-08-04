@@ -58,13 +58,12 @@ class UnexpectedJSONResponse(Error):
 class Toolhead(object):
 
     def __init__(self):
-        self.filament_fan_running = None
+        self.tool_id = None
         self.filament_presence = None
-        self.extrusion_percent = None
-        self.filament_jam = None
-
-        self.current_temperature = None
         self.preheating = None
+        self.index = None
+        self.tool_present = None
+        self.current_temperature = None
         self.target_temperature = None
 
 
@@ -77,9 +76,9 @@ def discover():
           a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
     """
     bcaddr = '255.255.255.255'
-    target_port = 12307
-    listen_port = 12308
-    source_port = 12309
+    target_port = 123070
+    listen_port = 123080
+    source_port = 123090
 
     broadcastsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -369,11 +368,14 @@ class Makerbot(object):
                     'RPC Error code=%s message=%s' % (code, message))
 
         bot_state = BotState()
-        if 'result' not in response:
+        #print json.dumps(response)
+                
+        if not response['result']:
             raise UnexpectedJSONResponse(response)
-        if 'machine' not in response['result']:
-            raise UnexpectedJSONResponse(response)
-        json_machine_status = response['result']['machine']
+        if 'machine_name' not in response['result']:
+           raise UnexpectedJSONResponse(response)
+        json_machine_status = response['result']['machine_name']
+        print json_machine_status
 
         for attr in ['step', 'extruder_temp', 'state', 'preheat_percent']:
             if attr in json_machine_status:
@@ -382,11 +384,14 @@ class Makerbot(object):
         # for now we just support one toolhead (are there any gen5 with
         # multiple heads anyway?)
         toolhead = Toolhead()
-        json_toolhead_status = json_machine_status['toolhead_0_status']
-        for attr in ['extrusion_percent',
-                     'filament_fan_running',
-                     'filament_jam',
-                     'filament_presence']:
+        json_toolhead_status = response['result']['toolheads']['extruder'][0]
+        #json_toolhead_status = json_machine_status['toolhead_0_status']
+        for attr in ['tool_id',
+                     'filament_presence',
+                     'preheating',
+                     'tool_present',
+                     'current_temperature',
+                     'target_temperature']:
             if attr in json_toolhead_status:
                 setattr(toolhead, attr, json_toolhead_status[attr])
 
