@@ -125,6 +125,7 @@ class BotState(object):
         self.toolheads = []
         self.preheat_percent = None
         self.state = None
+        self.current_process = None
 
     def get_tool_head_count(self):
         return len(self.toolheads)
@@ -355,61 +356,7 @@ class Makerbot(object):
         data = urllib2.urlopen(url).read()
         return struct.unpack('!IIII{0}s'.format(len(data) - ctypes.sizeof(ctypes.c_uint32 * 4)), data)
 
-    def get_current_process(self):
-        """Get the current process from MakerBot over JSON RPC.
-        
-        Returns:
-          A CurrentBotProcess object        
-        """
-        request_id = self._get_request_id()
-        method = 'get_system_information'
-        params = {
-            'username': 'conveyor'
-        }
-        jsonrpc = self._generate_json_rpc(
-            method, params, request_id)
-        response = self._send_rpc(jsonrpc)
-        if 'error' in response:
-            err = response['error']
-            code = err['code']
-            message = err['message']
-            # 'method not found' means the current connection is not
-            # authenticated
-            if code == -32601:
-                raise NotAuthenticated(message)
-            else:
-                raise MakerBotError(
-                    'RPC Error code=%s message=%s' % (code, message))        
-                
-        if not response['result']:
-            raise UnexpectedJSONResponse(response)
 
-
-        #Check to see if there's a process happening.
-        if response['result']['current_process']:
-            #If the machine is doing something (loading filament, etc.), this will not be None.
-            current_bot_process = CurrentBotProcess()
-            json_current_process = response['result']['current_process']
-            for attr in ['username',
-                        'name',
-                        'cancellable',
-                        'temperature_settings',
-                        'tool_index',
-                        'step',
-                        'complete',
-                        'error',
-                        'cancelled',
-                        'reason',
-                        'id',
-                        'methods']:
-                if attr in json_current_process:
-                    setattr(current_bot_process, attr, json_current_process[attr])
-           
-            return current_bot_process
-        else:
-            #If there's no process happening, return null
-            return None
-    
     def get_system_information(self):
         """Get system information from MakerBot over JSON RPC.
 
@@ -438,8 +385,8 @@ class Makerbot(object):
 
         bot_state = BotState()
         
-        
-        print json.dumps(response)
+        #Uncommment this line to see the raw JSON the bot is sending
+        #print json.dumps(response)
                 
         if not response['result']:
             raise UnexpectedJSONResponse(response)
@@ -468,7 +415,31 @@ class Makerbot(object):
                 setattr(toolhead, attr, json_toolhead_status[attr])
         
         bot_state.toolheads.append(toolhead)
-
+        
+        #Check to see if there's a process happening.
+        if response['result']['current_process']:
+            #If the machine is doing something (loading filament, etc.), this will not be None.
+            current_bot_process = CurrentBotProcess()
+            json_current_process = response['result']['current_process']
+            for attr in ['username',
+                        'name',
+                        'cancellable',
+                        'temperature_settings',
+                        'tool_index',
+                        'step',
+                        'complete',
+                        'error',
+                        'cancelled',
+                        'reason',
+                        'id',
+                        'methods']:
+                if attr in json_current_process:
+                    setattr(current_bot_process, attr, json_current_process[attr])
+        else:
+            current_bot_process = None
+        
+        bot_state.current_process = current_bot_process
+        
         return bot_state
 
     def _rgb_clamp(self, x):

@@ -36,8 +36,12 @@ if __name__ == '__main__':
     print "Current temperature: ", toolhead.current_temperature
     print "Target temperature: ", toolhead.target_temperature
     
-    process = makerbot.get_current_process()
+    #process = makerbot.get_current_process()
+    process = botstate.current_process
+    print "-----------CURRENT PROCESS-----------"
     if process:
-        print "-----------CURRENT PROCESS-----------"
+        
         print "Process: ", process.name
         print "Cancellable: ", process.cancellable
+    else:
+        print "No processes running."
