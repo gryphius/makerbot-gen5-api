@@ -35,3 +35,9 @@ if __name__ == '__main__':
     print "Tool present: ", toolhead.tool_present
     print "Current temperature: ", toolhead.current_temperature
     print "Target temperature: ", toolhead.target_temperature
+    
+    process = makerbot.get_current_process()
+    if process:
+        print "-----------CURRENT PROCESS-----------"
+        print "Process: ", process.name
+        print "Cancellable: ", process.cancellable

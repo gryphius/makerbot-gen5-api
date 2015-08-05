@@ -132,6 +132,20 @@ class BotState(object):
     def __str__(self):
         return '<Bostate state=%s temp=%s>' % (self.state, self.extruder_temp)
 
+class CurrentBotProcess(object):
+
+    def __init__(self):
+        self.username = None
+        self.name = None
+        self.cancellable = None
+        self.temperature_settings = []
+        self.tool_index = None
+        self.step = None
+        self.error = None
+        self.cancelled = None
+        self.id = None
+        self.methods = []
+
 
 class Makerbot(object):
 
@@ -341,6 +355,61 @@ class Makerbot(object):
         data = urllib2.urlopen(url).read()
         return struct.unpack('!IIII{0}s'.format(len(data) - ctypes.sizeof(ctypes.c_uint32 * 4)), data)
 
+    def get_current_process(self):
+        """Get the current process from MakerBot over JSON RPC.
+        
+        Returns:
+          A CurrentBotProcess object        
+        """
+        request_id = self._get_request_id()
+        method = 'get_system_information'
+        params = {
+            'username': 'conveyor'
+        }
+        jsonrpc = self._generate_json_rpc(
+            method, params, request_id)
+        response = self._send_rpc(jsonrpc)
+        if 'error' in response:
+            err = response['error']
+            code = err['code']
+            message = err['message']
+            # 'method not found' means the current connection is not
+            # authenticated
+            if code == -32601:
+                raise NotAuthenticated(message)
+            else:
+                raise MakerBotError(
+                    'RPC Error code=%s message=%s' % (code, message))        
+                
+        if not response['result']:
+            raise UnexpectedJSONResponse(response)
+
+
+        #Check to see if there's a process happening.
+        if response['result']['current_process']:
+            #If the machine is doing something (loading filament, etc.), this will not be None.
+            current_bot_process = CurrentBotProcess()
+            json_current_process = response['result']['current_process']
+            for attr in ['username',
+                        'name',
+                        'cancellable',
+                        'temperature_settings',
+                        'tool_index',
+                        'step',
+                        'complete',
+                        'error',
+                        'cancelled',
+                        'reason',
+                        'id',
+                        'methods']:
+                if attr in json_current_process:
+                    setattr(current_bot_process, attr, json_current_process[attr])
+           
+            return current_bot_process
+        else:
+            #If there's no process happening, return null
+            return None
+    
     def get_system_information(self):
         """Get system information from MakerBot over JSON RPC.
 
@@ -368,7 +437,9 @@ class Makerbot(object):
                     'RPC Error code=%s message=%s' % (code, message))
 
         bot_state = BotState()
-        #print json.dumps(response)
+        
+        
+        print json.dumps(response)
                 
         if not response['result']:
             raise UnexpectedJSONResponse(response)
@@ -395,8 +466,7 @@ class Makerbot(object):
                      'target_temperature']:
             if attr in json_toolhead_status:
                 setattr(toolhead, attr, json_toolhead_status[attr])
-
-
+        
         bot_state.toolheads.append(toolhead)
 
         return bot_state
