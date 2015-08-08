@@ -51,8 +51,13 @@ class NotAuthenticated(Error):
 
 
 class UnexpectedJSONResponse(Error):
+    #Here's what the JSON should look like (When a process is not running):
+    #
+    #https://jsonblob.com/55bfee62e4b0f6d7e5be5aca
 
     """Unexpected JSON Response."""
+    
+    
 
 
 class Toolhead(object):
@@ -76,34 +81,50 @@ def discover():
           a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
     """
     bcaddr = '255.255.255.255'
-    target_port = 123070
-    listen_port = 123080
-    source_port = 123090
-
+    target_port = 12307
+    listen_port = 12308
+    source_port = 12309
+    
+    
     broadcastsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    broadcastsocket.bind(('0.0.0.0', source_port))
+   # broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #broadcastsocket.bind(('0.0.0.0', source_port))
+    broadcastsocket.bind(('', source_port))
 
     answersocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #answersocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     discover_request = '{"command": "broadcast"}'
-    answersocket.bind(('0.0.0.0', listen_port))
+    #answersocket.bind(('0.0.0.0', listen_port))
+    answersocket.bind(('', listen_port))
     answersocket.settimeout(3)
+    
+    broadcast_dict = {"command" : "broadcast"}
+    discover_request = json.dumps(broadcast_dict)
+    print discover_request
 
+    
+    
     answers = []
     knownbotips = []
     for _ in range(3):
-        broadcastsocket.sendto(discover_request, (bcaddr, target_port),)
+   
+        broadcastsocket.sendto(discover_request, (bcaddr, target_port))
+        print "sent discover request"
         try:
             data, fromaddr = answersocket.recvfrom(1024)
+            print "got data"
             if fromaddr not in knownbotips:
                 knownbotips.append(fromaddr)
                 infodic = json.loads(data)
+                #print json.dumps(data)
                 machine_name = infodic['machine_name']
                 serial = infodic['iserial']
                 answers.append((fromaddr[0], machine_name, serial),)
             else:
                 continue
         except socket.timeout:
+            print "no data"
             continue
         time.sleep(1)
     return answers
