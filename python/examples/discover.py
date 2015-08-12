@@ -10,4 +10,4 @@ if __name__ == '__main__':
         sys.exit(1)
 
     for ip, machine_name, serial in result:
-        print "Found '%s' at %s , sn=%s" % (machine_name, ip, serial)
+        print "Found '%s' at %s , serial number=%s" % (machine_name, ip, serial)
