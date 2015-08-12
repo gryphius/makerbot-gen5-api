@@ -6,5 +6,6 @@ if __name__ == '__main__':
     config = makerbotapi.makerbotapi.Config()
     config.load()
     
+    config.save()
     
     

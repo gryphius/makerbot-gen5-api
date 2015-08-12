@@ -107,8 +107,20 @@ class Config(object):
                     print 'Could not create config'
                     
                     
-                    
-                    
+    def save(self):
+        """Saves a makerbotapi json config. If no config.json exists, it will create one.
+        This method completely overwrites the old config.json, so make sure to run config.load()
+        before this if you want your old data saved.
+        
+        """
+        with open(self.fname, 'w') as outfile:
+            try:
+                json.dump(self.data, outfile)
+                print 'Saved config'
+            except ValueError, e:
+                print 'Could not save config'
+
+    
 def discover():
     """Discover Makerbot Gen5 in the network
 
