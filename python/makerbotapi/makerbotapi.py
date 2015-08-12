@@ -13,6 +13,7 @@ import urllib2
 import ctypes
 import struct
 import png
+import os
 
 try:
     from cStringIO import StringIO
@@ -71,7 +72,43 @@ class Toolhead(object):
         self.current_temperature = None
         self.target_temperature = None
 
-
+class Config(object):
+    """ A simple config file that contains info about bots that have been connected to.
+    
+    """
+    
+    def __init__(self):
+        self.configExists = None
+        self.fname = 'config.json'
+        self.emptyConfig = {'bots': {}}
+        self.data = None
+    
+    def load(self):
+        """Loads a makerbotapi json config. If no config.json exists, this will create one.
+        
+        """
+        if os.path.isfile(self.fname):
+            #File exists, load it.
+            print 'found config'
+            with open(self.fname) as json_data_file:
+                try:
+                    self.data = json.load(json_data_file)
+                    print 'Loaded config'
+                except ValueError, e:
+                    print 'Not a valid JSON config file!'
+        else:
+            print 'No config.json found. Creating empty config'
+            with open(self.fname, 'w') as outfile:
+                try:
+                    json.dump(self.emptyConfig, outfile)
+                    self.data = self.emptyConfig
+                    print 'Created config'
+                except ValueError, e:
+                    print 'Could not create config'
+                    
+                    
+                    
+                    
 def discover():
     """Discover Makerbot Gen5 in the network
 
