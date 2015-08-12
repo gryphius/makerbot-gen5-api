@@ -1,0 +1,36 @@
+{  
+   "jsonrpc":"2.0",
+   "id":2,
+   "result":{  
+      "sound":true,
+      "has_been_connected_to":true,
+      "machine_name":"MakerBot Replicator",
+      "ip":"10.1.10.114",
+      "bot_type":"replicator_5",
+      "disabled_errors":[  
+
+      ],
+      "toolheads":{  
+         "extruder":[  
+            {  
+               "preheating":false,
+               "filament_presence":true,
+               "tool_id":7,
+               "index":0,
+               "tool_present":true,
+               "current_temperature":23,
+               "target_temperature":0
+            }
+         ]
+      },
+      "api_version":"1.4.0",
+      "machine_type":"platypus",
+      "firmware_version":{  
+         "bugfix":1,
+         "major":1,
+         "build":305,
+         "minor":7
+      },
+      "current_process":none
+   }
+}
