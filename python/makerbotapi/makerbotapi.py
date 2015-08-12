@@ -120,6 +120,24 @@ class Config(object):
             except ValueError, e:
                 print 'Could not save config'
 
+    def addBot(self, botData):
+        """Adds a bot to the config file. botData is a tuple in the form of ('<ipaddress>','<machine name>','<serial>')
+        If the bot's serial number is already in the config, it will update the name/ip if they have changed.
+        
+        """
+        ip = botData[0]
+        name = botData[1]
+        serial = botData[2]
+        # We use the serial number as the dict key, and store the bot name and ip under that.
+        
+        if serial not in self.data['bots']:
+            self.data['bots'][serial] = {"machine name":name,"ip":ip}
+        else:
+            self.data['bots'][serial].update({"machine name":name,"ip":ip})
+        
+        
+        
+    
     
 def discover():
     """Discover Makerbot Gen5 in the network
