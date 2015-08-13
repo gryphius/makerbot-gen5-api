@@ -119,22 +119,80 @@ class Config(object):
                 print 'Saved config'
             except ValueError, e:
                 print 'Could not save config'
+                
+    def getBotInfo(self, botSerial):
+        """Allows you to see some basic info about the bot
+            
+        Args:
+            botSerial: Serial number of the bot you want to get info about
+          
+        Returns:
+            A dict if the serial number was found, otherwise will return None.
+        """
+        
+        if botSerial in self.data['bots']:
+            return self.data['bots'][botSerial]
+        else:
+            return None
+    
 
     def addBot(self, botData):
         """Adds a bot to the config file. botData is a tuple in the form of ('<ipaddress>','<machine name>','<serial>')
         If the bot's serial number is already in the config, it will update the name/ip if they have changed.
+        We also add two more keys -- 'save auth' and 'auth code'. These are set to false and None, respectively.
         
         """
         ip = botData[0]
         name = botData[1]
         serial = botData[2]
+        infodict = {"machine name":name,"ip":ip, "save auth": False, "auth code": None}
         # We use the serial number as the dict key, and store the bot name and ip under that.
         
         if serial not in self.data['bots']:
-            self.data['bots'][serial] = {"machine name":name,"ip":ip}
+            self.data['bots'][serial] = infodict
         else:
-            self.data['bots'][serial].update({"machine name":name,"ip":ip})
+            self.data['bots'][serial]['machine name'] = name
+            self.data['bots'][serial]['ip'] = ip
         
+    def setAuthCodeSavePermission(self, botSerial, bool):
+        """ Sets whether or not we are allowed to save an auth code.
+            
+        Args:
+            botSerial: Serial number of the bot you want to save a code to
+            bool: Boolean stating whether or not we are allowed to save an auth code.
+            
+        Returns:
+            True if it sucessfully changes the save state. False if it couldn't find the serial
+        """
+        
+        if botSerial in self.data['bots']:
+            self.data['bots'][botSerial]['save auth'] = bool
+            return True
+        else:
+            return False
+        
+    def saveAuthCode(self, botSerial, authCode):
+        """ Saves an authentication code to the config.
+            
+        Args:
+            botSerial: Serial number of the bot you want to save a code to
+            authCode: Authentication code to be saved
+          
+        Returns:
+            True if the code was succesfully saved. False if we don't have permission to save the code, or if the serial
+            wasn't found.
+        """
+        
+        if botSerial in self.data['bots']:
+            if self.data['bots'][botSerial]['save auth'] == True:
+                self.data['bots'][botSerial]['auth code'] = authCode
+                return True
+            else:
+                return False
+        else:
+            return False
+        
+
         
         
     
