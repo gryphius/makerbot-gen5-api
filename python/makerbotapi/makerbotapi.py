@@ -193,19 +193,24 @@ class Config(object):
             return False
         
 
-        
-        
+def closeSockets(sockets):
+    """Closes the sockets that communicate to the Gen5
     
+        Args: sockets: A list of broadcast and answers sockets: [broadcastsocket, answersocket]
     
-def discover():
-    """Discover Makerbot Gen5 in the network
-
-        Args:
-
-        Returns:
-          a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
     """
     
+    sockets[0].shutdown(socket.SHUT_RDWR)
+    sockets[1].shutdown(socket.SHUT_RDWR)
+    
+    sockets[0].close()
+    sockets[1].close()
+        
+def createSockets():
+    """Create the sockets that communicate to the Gen5.
+        
+        Returns: A list of sockets -- [broadcastsocket, answersocket]
+    """
     bcaddr = '255.255.255.255'
     target_port = 12307
     listen_port = 12308
@@ -219,28 +224,51 @@ def discover():
     answersocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     discover_request = '{"command": "broadcast"}'
     answersocket.bind(('', listen_port))
-    answersocket.settimeout(3)
+    answersocket.setblocking(0)
+
+    
+    sockets = [broadcastsocket, answersocket]
+    return sockets
+    
+def discover(sockets, knownBotIps, sleep = 1):
+    """Discover Makerbot Gen5 in the network
+
+        Args:
+            sockets: A list of a broadcast socket and an answer socket, in that order.
+            knownBotIps: A list of known bot ips, so we don't duplicate ips in our result.
+            sleep: How long this function should sleep after checking for a response.
+                Users can override this, but the default value is 1 second.
+
+        Returns:
+          a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
+    """
+    
+    bcaddr = '255.255.255.255'
+    target_port = 12307
+    listen_port = 12308
+    source_port = 12309
+    
+    broadcastsocket = sockets[0]
+    answersocket = sockets[1]
     
     broadcast_dict = {"command" : "broadcast"}
     discover_request = json.dumps(broadcast_dict)
     
     answers = []
-    knownbotips = []
-    for _ in range(3):
-        broadcastsocket.sendto(discover_request, (bcaddr, target_port))
-        try:
-            data, fromaddr = answersocket.recvfrom(1024)
-            if fromaddr not in knownbotips:
-                knownbotips.append(fromaddr)
-                infodic = json.loads(data)
-                machine_name = infodic['machine_name']
-                serial = infodic['iserial']
-                answers.append((fromaddr[0], machine_name, serial),)
-            else:
-                continue
-        except socket.timeout:
-            continue
-        time.sleep(1)
+    knownbotips = [knownBotIps]
+    
+    broadcastsocket.sendto(discover_request, (bcaddr, target_port))
+    try:
+        data, fromaddr = answersocket.recvfrom(1024)
+        if fromaddr not in knownbotips:
+            knownbotips.append(fromaddr)
+            infodic = json.loads(data)
+            machine_name = infodic['machine_name']
+            serial = infodic['iserial']
+            answers.append((fromaddr[0], machine_name, serial),)
+    except socket.error:
+        '''no data yet'''
+    time.sleep(sleep)
     return answers
 
 
