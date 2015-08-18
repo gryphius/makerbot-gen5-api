@@ -13,6 +13,7 @@ import urllib2
 import ctypes
 import struct
 import png
+import os
 
 try:
     from cStringIO import StringIO
@@ -71,14 +72,144 @@ class Toolhead(object):
         self.current_temperature = None
         self.target_temperature = None
 
-
-def discover():
-    """Discover Makerbot Gen5 in the network
-
+class Config(object):
+    """ A simple config file that contains info about bots that have been connected to.
+    
+    """
+    
+    def __init__(self):
+        self.configExists = None
+        self.fname = 'config.json'
+        self.emptyConfig = {'bots': {}}
+        self.data = None
+    
+    def load(self):
+        """Loads a makerbotapi json config. If no config.json exists, this will create one.
+        
+        """
+        if os.path.isfile(self.fname):
+            #File exists, load it.
+            print 'found config'
+            with open(self.fname) as json_data_file:
+                try:
+                    self.data = json.load(json_data_file)
+                    print 'Loaded config'
+                except ValueError, e:
+                    print 'Not a valid JSON config file!'
+        else:
+            print 'No config.json found. Creating empty config'
+            with open(self.fname, 'w') as outfile:
+                try:
+                    json.dump(self.emptyConfig, outfile)
+                    self.data = self.emptyConfig
+                    print 'Created config'
+                except ValueError, e:
+                    print 'Could not create config'
+                    
+                    
+    def save(self):
+        """Saves a makerbotapi json config. If no config.json exists, it will create one.
+        This method completely overwrites the old config.json, so make sure to run config.load()
+        before this if you want your old data saved.
+        
+        """
+        with open(self.fname, 'w') as outfile:
+            try:
+                json.dump(self.data, outfile)
+                print 'Saved config'
+            except ValueError, e:
+                print 'Could not save config'
+                
+    def getBotInfo(self, botSerial):
+        """Allows you to see some basic info about the bot
+            
         Args:
-
+            botSerial: Serial number of the bot you want to get info about
+          
         Returns:
-          a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
+            A dict if the serial number was found, otherwise will return None.
+        """
+        
+        if botSerial in self.data['bots']:
+            return self.data['bots'][botSerial]
+        else:
+            return None
+    
+
+    def addBot(self, botData):
+        """Adds a bot to the config file. botData is a tuple in the form of ('<ipaddress>','<machine name>','<serial>')
+        If the bot's serial number is already in the config, it will update the name/ip if they have changed.
+        We also add two more keys -- 'save auth' and 'auth code'. These are set to false and None, respectively.
+        
+        """
+        ip = botData[0]
+        name = botData[1]
+        serial = botData[2]
+        infodict = {"machine name":name,"ip":ip, "save auth": False, "auth code": None}
+        # We use the serial number as the dict key, and store the bot name and ip under that.
+        
+        if serial not in self.data['bots']:
+            self.data['bots'][serial] = infodict
+        else:
+            self.data['bots'][serial]['machine name'] = name
+            self.data['bots'][serial]['ip'] = ip
+        
+    def setAuthCodeSavePermission(self, botSerial, bool):
+        """ Sets whether or not we are allowed to save an auth code.
+            
+        Args:
+            botSerial: Serial number of the bot you want to save a code to
+            bool: Boolean stating whether or not we are allowed to save an auth code.
+            
+        Returns:
+            True if it sucessfully changes the save state. False if it couldn't find the serial
+        """
+        
+        if botSerial in self.data['bots']:
+            self.data['bots'][botSerial]['save auth'] = bool
+            return True
+        else:
+            return False
+        
+    def saveAuthCode(self, botSerial, authCode):
+        """ Saves an authentication code to the config.
+            
+        Args:
+            botSerial: Serial number of the bot you want to save a code to
+            authCode: Authentication code to be saved
+          
+        Returns:
+            True if the code was succesfully saved. False if we don't have permission to save the code, or if the serial
+            wasn't found.
+        """
+        
+        if botSerial in self.data['bots']:
+            if self.data['bots'][botSerial]['save auth'] == True:
+                self.data['bots'][botSerial]['auth code'] = authCode
+                return True
+            else:
+                return False
+        else:
+            return False
+        
+
+def closeSockets(sockets):
+    """Closes the sockets that communicate to the Gen5
+    
+        Args: sockets: A list of broadcast and answers sockets: [broadcastsocket, answersocket]
+    
+    """
+    
+    sockets[0].shutdown(socket.SHUT_RDWR)
+    sockets[1].shutdown(socket.SHUT_RDWR)
+    
+    sockets[0].close()
+    sockets[1].close()
+        
+def createSockets():
+    """Create the sockets that communicate to the Gen5.
+        
+        Returns: A list of sockets -- [broadcastsocket, answersocket]
     """
     bcaddr = '255.255.255.255'
     target_port = 12307
@@ -88,45 +219,56 @@ def discover():
     
     broadcastsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-   # broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #broadcastsocket.bind(('0.0.0.0', source_port))
     broadcastsocket.bind(('', source_port))
 
     answersocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #answersocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     discover_request = '{"command": "broadcast"}'
-    #answersocket.bind(('0.0.0.0', listen_port))
     answersocket.bind(('', listen_port))
-    answersocket.settimeout(3)
+    answersocket.setblocking(0)
+
+    
+    sockets = [broadcastsocket, answersocket]
+    return sockets
+    
+def discover(sockets, knownBotIps, sleep = 1):
+    """Discover Makerbot Gen5 in the network
+
+        Args:
+            sockets: A list of a broadcast socket and an answer socket, in that order.
+            knownBotIps: A list of known bot ips, so we don't duplicate ips in our result.
+            sleep: How long this function should sleep after checking for a response.
+                Users can override this, but the default value is 1 second.
+
+        Returns:
+          a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
+    """
+    
+    bcaddr = '255.255.255.255'
+    target_port = 12307
+    listen_port = 12308
+    source_port = 12309
+    
+    broadcastsocket = sockets[0]
+    answersocket = sockets[1]
     
     broadcast_dict = {"command" : "broadcast"}
     discover_request = json.dumps(broadcast_dict)
-    print discover_request
-
-    
     
     answers = []
-    knownbotips = []
-    for _ in range(3):
-   
-        broadcastsocket.sendto(discover_request, (bcaddr, target_port))
-        print "sent discover request"
-        try:
-            data, fromaddr = answersocket.recvfrom(1024)
-            print "got data"
-            if fromaddr not in knownbotips:
-                knownbotips.append(fromaddr)
-                infodic = json.loads(data)
-                #print json.dumps(data)
-                machine_name = infodic['machine_name']
-                serial = infodic['iserial']
-                answers.append((fromaddr[0], machine_name, serial),)
-            else:
-                continue
-        except socket.timeout:
-            print "no data"
-            continue
-        time.sleep(1)
+    knownbotips = [knownBotIps]
+    
+    broadcastsocket.sendto(discover_request, (bcaddr, target_port))
+    try:
+        data, fromaddr = answersocket.recvfrom(1024)
+        if fromaddr not in knownbotips:
+            knownbotips.append(fromaddr)
+            infodic = json.loads(data)
+            machine_name = infodic['machine_name']
+            serial = infodic['iserial']
+            answers.append((fromaddr[0], machine_name, serial),)
+    except socket.error:
+        '''no data yet'''
+    time.sleep(sleep)
     return answers
 
 
