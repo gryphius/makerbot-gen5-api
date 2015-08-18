@@ -245,8 +245,6 @@ def discover(sockets, knownBotIps, sleep = 1):
     
     bcaddr = '255.255.255.255'
     target_port = 12307
-    listen_port = 12308
-    source_port = 12309
     
     broadcastsocket = sockets[0]
     answersocket = sockets[1]
@@ -255,13 +253,12 @@ def discover(sockets, knownBotIps, sleep = 1):
     discover_request = json.dumps(broadcast_dict)
     
     answers = []
-    knownbotips = [knownBotIps]
     
     broadcastsocket.sendto(discover_request, (bcaddr, target_port))
     try:
         data, fromaddr = answersocket.recvfrom(1024)
-        if fromaddr not in knownbotips:
-            knownbotips.append(fromaddr)
+        ip = fromaddr[0]
+        if ip not in knownBotIps:
             infodic = json.loads(data)
             machine_name = infodic['machine_name']
             serial = infodic['iserial']
