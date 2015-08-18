@@ -230,7 +230,7 @@ def createSockets():
     sockets = [broadcastsocket, answersocket]
     return sockets
     
-def discover(sockets, knownBotIps, sleep = 1):
+def discover(sockets, knownBotIps = None, sleep = 1):
     """Discover Makerbot Gen5 in the network
 
         Args:
@@ -242,6 +242,9 @@ def discover(sockets, knownBotIps, sleep = 1):
         Returns:
           a list of tuples in the form ('<ipaddress>','<machine name>','<serial>')
     """
+    if knownBotIps == None:
+        knownBotIps = []
+
     
     bcaddr = '255.255.255.255'
     target_port = 12307
