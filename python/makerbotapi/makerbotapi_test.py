@@ -152,7 +152,8 @@ class ModuleTest(unittest.TestCase):
         sock_mock.recvfrom.return_value = (
             BROADCAST_RESPONSE, ('192.168.1.1', 12345))
         socket.socket = mock.Mock(return_value=sock_mock)
-        ans = makerbotapi.discover()
+        socks = makerbotapi.createSockets()
+        ans = makerbotapi.discover(socks)
         self.assertEquals(
             ans, [('192.168.1.1', u'MakerBot Replicator', u'1234567890ABCDEFG')])
 
