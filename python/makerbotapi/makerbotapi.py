@@ -258,6 +258,7 @@ def discover(sockets, knownBotIps = None, sleep = 1):
     answers = []
     
     broadcastsocket.sendto(discover_request, (bcaddr, target_port))
+    time.sleep(sleep)
     try:
         data, fromaddr = answersocket.recvfrom(1024)
         ip = fromaddr[0]
@@ -268,7 +269,6 @@ def discover(sockets, knownBotIps = None, sleep = 1):
             answers.append((fromaddr[0], machine_name, serial),)
     except socket.error:
         '''no data yet'''
-    time.sleep(sleep)
     return answers
 
 
