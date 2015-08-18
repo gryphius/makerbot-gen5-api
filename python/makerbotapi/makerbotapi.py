@@ -52,13 +52,11 @@ class NotAuthenticated(Error):
 
 
 class UnexpectedJSONResponse(Error):
-    #Here's what the JSON should look like (When a process is not running):
+    # Here's what the JSON should look like (When a process is not running):
     #
-    #https://jsonblob.com/55bfee62e4b0f6d7e5be5aca
+    # https://jsonblob.com/55bfee62e4b0f6d7e5be5aca
 
     """Unexpected JSON Response."""
-    
-    
 
 
 class Toolhead(object):
@@ -72,23 +70,25 @@ class Toolhead(object):
         self.current_temperature = None
         self.target_temperature = None
 
+
 class Config(object):
+
     """ A simple config file that contains info about bots that have been connected to.
-    
+
     """
-    
+
     def __init__(self):
         self.configExists = None
         self.fname = 'config.json'
         self.emptyConfig = {'bots': {}}
         self.data = None
-    
+
     def load(self):
         """Loads a makerbotapi json config. If no config.json exists, this will create one.
-        
+
         """
         if os.path.isfile(self.fname):
-            #File exists, load it.
+            # File exists, load it.
             print 'found config'
             with open(self.fname) as json_data_file:
                 try:
@@ -105,13 +105,12 @@ class Config(object):
                     print 'Created config'
                 except ValueError, e:
                     print 'Could not create config'
-                    
-                    
+
     def save(self):
         """Saves a makerbotapi json config. If no config.json exists, it will create one.
         This method completely overwrites the old config.json, so make sure to run config.load()
         before this if you want your old data saved.
-        
+
         """
         with open(self.fname, 'w') as outfile:
             try:
@@ -119,70 +118,71 @@ class Config(object):
                 print 'Saved config'
             except ValueError, e:
                 print 'Could not save config'
-                
+
     def getBotInfo(self, botSerial):
         """Allows you to see some basic info about the bot
-            
+
         Args:
             botSerial: Serial number of the bot you want to get info about
-          
+
         Returns:
             A dict if the serial number was found, otherwise will return None.
         """
-        
+
         if botSerial in self.data['bots']:
             return self.data['bots'][botSerial]
         else:
             return None
-    
 
     def addBot(self, botData):
         """Adds a bot to the config file. botData is a tuple in the form of ('<ipaddress>','<machine name>','<serial>')
         If the bot's serial number is already in the config, it will update the name/ip if they have changed.
         We also add two more keys -- 'save auth' and 'auth code'. These are set to false and None, respectively.
-        
+
         """
         ip = botData[0]
         name = botData[1]
         serial = botData[2]
-        infodict = {"machine name":name,"ip":ip, "save auth": False, "auth code": None}
-        # We use the serial number as the dict key, and store the bot name and ip under that.
-        
+        infodict = {"machine name": name, "ip": ip,
+                    "save auth": False, "auth code": None}
+        # We use the serial number as the dict key, and store the bot name and
+        # ip under that.
+
         if serial not in self.data['bots']:
             self.data['bots'][serial] = infodict
         else:
             self.data['bots'][serial]['machine name'] = name
             self.data['bots'][serial]['ip'] = ip
-        
+
     def setAuthCodeSavePermission(self, botSerial, bool):
         """ Sets whether or not we are allowed to save an auth code.
-            
+
         Args:
             botSerial: Serial number of the bot you want to save a code to
             bool: Boolean stating whether or not we are allowed to save an auth code.
-            
+
         Returns:
             True if it sucessfully changes the save state. False if it couldn't find the serial
         """
-        
+
         if botSerial in self.data['bots']:
             self.data['bots'][botSerial]['save auth'] = bool
             return True
         else:
             return False
-        
+
     def saveAuthCode(self, botSerial, authCode):
         """ Saves an authentication code to the config.
-            
+
         Args:
             botSerial: Serial number of the bot you want to save a code to
             authCode: Authentication code to be saved
-          
+
         Returns:
             True if the code was succesfully saved. False if we don't have permission to save the code, or if the serial
             wasn't found.
         """
-        
+
         if botSerial in self.data['bots']:
             if self.data['bots'][botSerial]['save auth'] == True:
                 self.data['bots'][botSerial]['auth code'] = authCode
@@ -191,32 +191,32 @@ class Config(object):
                 return False
         else:
             return False
-        
+
 
 def closeSockets(sockets):
     """Closes the sockets that communicate to the Gen5
-    
+
         Args: sockets: A list of broadcast and answers sockets: [broadcastsocket, answersocket]
-    
+
     """
-    
+
     sockets[0].shutdown(socket.SHUT_RDWR)
     sockets[1].shutdown(socket.SHUT_RDWR)
-    
+
     sockets[0].close()
     sockets[1].close()
-        
+
+
 def createSockets():
     """Create the sockets that communicate to the Gen5.
-        
+
         Returns: A list of sockets -- [broadcastsocket, answersocket]
     """
     bcaddr = '255.255.255.255'
     target_port = 12307
     listen_port = 12308
     source_port = 12309
-    
-    
+
     broadcastsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     broadcastsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     broadcastsocket.bind(('', source_port))
@@ -226,11 +226,11 @@ def createSockets():
     answersocket.bind(('', listen_port))
     answersocket.setblocking(0)
 
-    
     sockets = [broadcastsocket, answersocket]
     return sockets
-    
-def discover(sockets, knownBotIps = None, sleep = 1):
+
+
+def discover(sockets, knownBotIps=None, sleep=1):
     """Discover Makerbot Gen5 in the network
 
         Args:
@@ -245,18 +245,17 @@ def discover(sockets, knownBotIps = None, sleep = 1):
     if knownBotIps == None:
         knownBotIps = []
 
-    
     bcaddr = '255.255.255.255'
     target_port = 12307
-    
+
     broadcastsocket = sockets[0]
     answersocket = sockets[1]
-    
-    broadcast_dict = {"command" : "broadcast"}
+
+    broadcast_dict = {"command": "broadcast"}
     discover_request = json.dumps(broadcast_dict)
-    
+
     answers = []
-    
+
     broadcastsocket.sendto(discover_request, (bcaddr, target_port))
     time.sleep(sleep)
     try:
@@ -295,6 +294,7 @@ class BotState(object):
 
     def __str__(self):
         return '<Bostate state=%s temp=%s>' % (self.state, self.extruder_temp)
+
 
 class CurrentBotProcess(object):
 
@@ -519,7 +519,6 @@ class Makerbot(object):
         data = urllib2.urlopen(url).read()
         return struct.unpack('!IIII{0}s'.format(len(data) - ctypes.sizeof(ctypes.c_uint32 * 4)), data)
 
-
     def get_system_information(self):
         """Get system information from MakerBot over JSON RPC.
 
@@ -547,14 +546,14 @@ class Makerbot(object):
                     'RPC Error code=%s message=%s' % (code, message))
 
         bot_state = BotState()
-        
-        #Uncommment this line to see the raw JSON the bot is sending
-        #print json.dumps(response)
-                
+
+        # Uncommment this line to see the raw JSON the bot is sending
+        # print json.dumps(response)
+
         if not response['result']:
             raise UnexpectedJSONResponse(response)
         if 'machine_name' not in response['result']:
-           raise UnexpectedJSONResponse(response)
+            raise UnexpectedJSONResponse(response)
         json_machine_status = response['result']['machine_name']
         print json_machine_status
 
@@ -576,33 +575,35 @@ class Makerbot(object):
                      'target_temperature']:
             if attr in json_toolhead_status:
                 setattr(toolhead, attr, json_toolhead_status[attr])
-        
+
         bot_state.toolheads.append(toolhead)
-        
-        #Check to see if there's a process happening.
+
+        # Check to see if there's a process happening.
         if response['result']['current_process']:
-            #If the machine is doing something (loading filament, etc.), this will not be None.
+            # If the machine is doing something (loading filament, etc.), this
+            # will not be None.
             current_bot_process = CurrentBotProcess()
             json_current_process = response['result']['current_process']
             for attr in ['username',
-                        'name',
-                        'cancellable',
-                        'temperature_settings',
-                        'tool_index',
-                        'step',
-                        'complete',
-                        'error',
-                        'cancelled',
-                        'reason',
-                        'id',
-                        'methods']:
+                         'name',
+                         'cancellable',
+                         'temperature_settings',
+                         'tool_index',
+                         'step',
+                         'complete',
+                         'error',
+                         'cancelled',
+                         'reason',
+                         'id',
+                         'methods']:
                 if attr in json_current_process:
-                    setattr(current_bot_process, attr, json_current_process[attr])
+                    setattr(
+                        current_bot_process, attr, json_current_process[attr])
         else:
             current_bot_process = None
-        
+
         bot_state.current_process = current_bot_process
-        
+
         return bot_state
 
     def _rgb_clamp(self, x):

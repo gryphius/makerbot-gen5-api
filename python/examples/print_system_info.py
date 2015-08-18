@@ -23,9 +23,9 @@ if __name__ == '__main__':
 
     botstate = makerbot.get_system_information()
 
-    #print "State:", botstate.state
-    #print "Extruder Temp:", botstate.extruder_temp
-    #print "Preheat:", botstate.preheat_percent, "%"
+    # print "State:", botstate.state
+    # print "Extruder Temp:", botstate.extruder_temp
+    # print "Preheat:", botstate.preheat_percent, "%"
 
     toolhead = botstate.toolheads[0]
     print "Tool ID: ", toolhead.tool_id
@@ -35,12 +35,12 @@ if __name__ == '__main__':
     print "Tool present: ", toolhead.tool_present
     print "Current temperature: ", toolhead.current_temperature
     print "Target temperature: ", toolhead.target_temperature
-    
+
     #process = makerbot.get_current_process()
     process = botstate.current_process
     print "-----------CURRENT PROCESS-----------"
     if process:
-        
+
         print "Process: ", process.name
         print "Cancellable: ", process.cancellable
     else:

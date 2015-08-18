@@ -24,20 +24,19 @@ if __name__ == '__main__':
         print "Authenticated with code", makerbot.auth_code
 
     makerbot.authenticate_json_rpc()
-    
+
     #newpath = "\\temp\\"
     #if not os.path.exists(newpath): os.makedirs(newpath)
-    record_time = int(record_length)/2
-    
-    for x in range (0, record_time):
-        #print "we're on time %d" % (x)
-        out = "\\temp\\" + output_filename[:-4] + str(x).zfill(10) + ".png" 
-        #print out
+    record_time = int(record_length) / 2
+
+    for x in range(0, record_time):
+        # print "we're on time %d" % (x)
+        out = "\\temp\\" + output_filename[:-4] + str(x).zfill(10) + ".png"
+        # print out
         dir = os.getcwd() + os.path.dirname(out)
         if not os.path.exists(dir):
-            #print "it doesn't exist"
+            # print "it doesn't exist"
             os.mkdir(dir)
-        #print dir
+        # print dir
         makerbot.save_camera_png(os.getcwd() + out)
         time.sleep(2)
-    
