@@ -14,6 +14,7 @@ except:
 
 import makerbotapi
 import mock
+import json
 
 FCGI_ANSWER_PENDING_RESPONSE = '{"answer": "pending", "username": "Anonymous"}'
 FCGI_ANSWER_ACCEPTED_RESPONSE = '{"code": "abcde", "username": "Anonymous", "answer": "accepted"}'
@@ -70,7 +71,11 @@ class MakerbotTest(unittest.TestCase):
                           self.makerbot.authenticate_fcgi)
 
     def test_do_handshake(self):
+
         self.handle.recv.return_value = JSONRPC_HANDSHAKE_RESPONSE
+        self.makerbot._get_request_id = mock.Mock(return_value=10)
+        self.makerbot.rpc_id_responses[
+            10] = json.loads(JSONRPC_HANDSHAKE_RESPONSE)
 
         self.makerbot.do_handshake()
 
@@ -119,12 +124,18 @@ class MakerbotTest(unittest.TestCase):
 
     def testNotAuthenticated(self):
         self.handle.recv.return_value = JSONRPC_NOT_AUTHENTICATED_RESPONSE
+        self.makerbot._get_request_id = mock.Mock(return_value=10)
+        self.makerbot.rpc_id_responses[10] = json.loads(
+            JSONRPC_NOT_AUTHENTICATED_RESPONSE)
         self.assertRaises(
             makerbotapi.NotAuthenticated, self.makerbot.get_system_information)
 
     def test_authenticate_json_rpc(self):
         urllib2.urlopen.return_value = StringIO(FCGI_TOKEN_RESPONSE)
         self.handle.recv.return_value = JSONRPC_AUTHENTICATED_RESPONSE
+        self.makerbot._get_request_id = mock.Mock(return_value=10)
+        self.makerbot.rpc_id_responses[10] = json.loads(
+            JSONRPC_AUTHENTICATED_RESPONSE)
         self.makerbot.authenticate_json_rpc()
         self.assertTrue(self.makerbot.jsonrpc_authenticated)
 
