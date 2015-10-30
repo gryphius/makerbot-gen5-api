@@ -344,9 +344,10 @@ class Makerbot(object):
         self.debug_jsonrpc = False
         self.debug_fcgi = False
 
-        self.rpc_response_buffer = ''
         self.rpc_unsolicited_messages = []
         self.rpc_id_responses = {}
+        # TODO: implement consumers to remove obsolete solicited/unsolicited
+        # messages
 
         self.rpc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if auto_connect:
@@ -431,23 +432,34 @@ class Makerbot(object):
 
     def _rpc_reader_thread(self):
         buffer = ''
-        parenindex = 0
         while True:
             response = self.rpc_socket.recv(4096)
-            buffer = buffer + response
-            assert buffer.startswith('{')
-            pos = 0
-            start = 0
-            for char in buffer:
-                pos += 1
-                if char == '{':
-                    parenindex += 1
-                if char == '}':
-                    parenindex -= 1
-                    if parenindex == 0:
-                        response = buffer[start:pos]
-                        self._handle_response(response)
-                        start = pos
+            buffer += response
+            message, rest = self._rpc_get_next_message(buffer)
+            while message != None:
+                self._handle_response(message)
+                buffer = rest
+                message, rest = self._rpc_get_next_message(buffer)
+            buffer = rest
+
+    def _rpc_get_next_message(self, buffer):
+        """get the first rpc message from the stream.
+        Returns a tuple (first message, rest of the buffer)"""
+        if len(buffer) == 0:
+            return None, buffer
+        parenindex = 0
+        assert buffer.startswith('{'), 'invalid buffer state %s' % buffer
+        pos = 0
+        for char in buffer:
+            pos += 1
+            if char == '{':
+                parenindex += 1
+            if char == '}':
+                parenindex -= 1
+                if parenindex == 0:
+                    message = buffer[0:pos]
+                    return message, buffer[pos + 1:]
+        return None, buffer
 
     def _handle_response(self, response):
         if self.debug_jsonrpc:
@@ -487,32 +499,13 @@ class Makerbot(object):
 
     def authenticate_json_rpc(self):
         """Authenticate to the MakerBot JSON RPC interface."""
-        request_id = self._get_request_id()
-        method = 'authenticate'
-        params = {
-            'access_token': self.get_access_token(context='jsonrpc'),
-        }
-        jsonrpc = self._generate_json_rpc(
-            method, params, request_id)
-        self._send_rpc(jsonrpc)
-        response = self._wait_for_rpc_response(request_id)
-        if 'error' in response:
-            err = response['error']
-            code = err['code']
-            message = err['message']
-            raise MakerBotError(
-                'RPC Error code=%s message=%s' % (code, message))
-        else:
-            self.jsonrpc_authenticated = True
+        response = self.rpc_request_response(
+            'authenticate', {'access_token': self.get_access_token(context='jsonrpc')})
+        self.jsonrpc_authenticated = True
 
     def do_handshake(self):
         """Perform handshake with MakerBot over JSON RPC."""
-        method = 'handshake'
-        request_id = self._get_request_id()
-        jsonrpc = self._generate_json_rpc(
-            method, self.default_params, request_id)
-        self._send_rpc(jsonrpc)
-        response = self._wait_for_rpc_response(request_id)
+        response = self.rpc_request_response('handshake', self.default_params)
         if 'result' in response and len(response.get('result')):
             self.builder = response['result'].get('builder')
             self.commit = response['result'].get('commit')
@@ -559,17 +552,8 @@ class Makerbot(object):
         data = urllib2.urlopen(url).read()
         return struct.unpack('!IIII{0}s'.format(len(data) - ctypes.sizeof(ctypes.c_uint32 * 4)), data)
 
-    def get_system_information(self):
-        """Get system information from MakerBot over JSON RPC.
-
-        Returns:
-          A BotState object
-        """
+    def rpc_request_response(self, method, params):
         request_id = self._get_request_id()
-        method = 'get_system_information'
-        params = {
-            'username': 'conveyor'
-        }
         jsonrpc = self._generate_json_rpc(
             method, params, request_id)
         self._send_rpc(jsonrpc)
@@ -585,7 +569,16 @@ class Makerbot(object):
             else:
                 raise MakerBotError(
                     'RPC Error code=%s message=%s' % (code, message))
+        return response
 
+    def get_system_information(self):
+        """Get system information from MakerBot over JSON RPC.
+
+        Returns:
+          A BotState object
+        """
+        response = self.rpc_request_response(
+            'get_system_information', {'username': 'conveyor'})
         bot_state = BotState()
 
         # Uncommment this line to see the raw JSON the bot is sending
