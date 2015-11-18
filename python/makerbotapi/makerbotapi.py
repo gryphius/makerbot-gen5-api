@@ -314,6 +314,7 @@ class CurrentBotProcess(object):
         self.cancelled = None
         self.id = None
         self.methods = []
+        self.progress = None
 
 
 class Makerbot(object):
@@ -427,7 +428,7 @@ class Makerbot(object):
         too_late = time.time() + timeout
         while time.time() < too_late:
             if requestid in self.rpc_id_responses:
-                return self.rpc_id_responses[requestid]
+                return self.rpc_id_responses.pop(requestid)
         return None
 
     def _rpc_reader_thread(self):
@@ -628,7 +629,8 @@ class Makerbot(object):
                          'cancelled',
                          'reason',
                          'id',
-                         'methods']:
+                         'methods',
+                         'progress']:
                 if attr in json_current_process:
                     setattr(
                         current_bot_process, attr, json_current_process[attr])
