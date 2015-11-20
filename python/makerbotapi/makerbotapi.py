@@ -351,6 +351,8 @@ class Makerbot(object):
         self.machine_name = None
         self.machine_type = None
         self.vid = None
+        self.pid = None
+        self.bot_type = None
 
         self.default_params = {'username': 'conveyor',
                                'host_version': '1.0'}
@@ -529,6 +531,8 @@ class Makerbot(object):
             self.machine_name = response['result'].get('machine_name')
             self.machine_type = response['result'].get('machine_type')
             self.vid = response['result'].get('vid')
+            self.pid = response['result'].get('pid')
+            self.bot_type = response['result'].get('bot_type')
 
     def get_access_token(self, context):
         """Get an OAuth access token from the MakerBot FCGI interface.
@@ -692,6 +696,18 @@ class Makerbot(object):
         _, width, height, _, yuv_image = self._get_raw_camera_image_data()
         rgb_rows = self._yuv_to_rgb_rows(StringIO(yuv_image), width, height)
         self._rgb_rows_to_png(rgb_rows, width, height, output_file)
+
+    def get_camera_png(self):
+        """Get image from the MakerBot camera in PNG format.
+        """
+        _, width, height, _, yuv_image = self._get_raw_camera_image_data()
+        rgb_rows = self._yuv_to_rgb_rows(StringIO(yuv_image), width, height)
+        png_file = png.Writer(width, height)
+        output = StringIO()
+        png_file.write(output, rgb_rows)
+        contents = output.getvalue()
+        output.close()
+        return contents
 
     def _yuv_to_rgb_rows(self, yuv_image, width, height):
         """Convert YUYV422 to RGB pixels.
