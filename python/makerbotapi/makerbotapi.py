@@ -509,6 +509,11 @@ class Makerbot(object):
                 self.auth_code = response.get('code')
                 break
 
+            if response.get('answer') == 'rejected':
+                error_message = "Pairing mode is already active for this printer. " \
+                                "Press a button on printer to disable pairing mode."
+                raise AuthenticationError(error_message)
+
             if time.time() - start_time >= self.auth_timeout:
                 raise AuthenticationTimeout
 
