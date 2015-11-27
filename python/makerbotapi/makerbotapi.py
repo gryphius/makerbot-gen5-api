@@ -475,7 +475,7 @@ class Makerbot(object):
                 parenindex -= 1
                 if parenindex == 0:
                     message = buffer[0:pos]
-                    return message, buffer[pos + 1:]
+                    return message, buffer[pos:]
         return None, buffer
 
     def _handle_response(self, response):

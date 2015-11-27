@@ -164,6 +164,16 @@ class MakerbotTest(unittest.TestCase):
         tpl = self.makerbot._get_raw_camera_image_data()
         self.assertEquals(tpl[:4], (153616, 320, 240, 1))
 
+    def test__rpc_get_next_message(self):
+        self.assertEqual(
+            self.makerbot._rpc_get_next_message("{foo}"), ("{foo}", ""),)
+        self.assertEqual(
+            self.makerbot._rpc_get_next_message("{foo}{bar}"), ("{foo}", "{bar}"),)
+        self.assertEqual(self.makerbot._rpc_get_next_message(
+            "{foo}{bar{baz}}"), ("{foo}", "{bar{baz}}"),)
+        self.assertEqual(self.makerbot._rpc_get_next_message(
+            "{foo{baz}}{bar{baz}}"), ("{foo{baz}}", "{bar{baz}}"),)
+
 
 class ModuleTest(unittest.TestCase):
 
